@@ -1,0 +1,36 @@
+@HEADER-COMMENT@
+
+# neededforbuild  yast2-devel-packages yast2
+
+@HEADER@
+Requires:	yast2
+
+Summary:	-
+
+%description
+-
+
+@PREP@
+
+@BUILD@
+
+@INSTALL@
+
+%ifarch s390 s390x
+rm -f $RPM_BUILD_ROOT@desktopdir@/hpc.desktop
+%endif
+
+@CLEAN@
+
+%files
+%defattr(-,root,root)
+@moduledir@/*
+%dir @yncludedir@/hpc
+@yncludedir@/hpc/*
+@clientdir@/*.ycp
+%ifnarch s390 s390x
+@desktopdir@/*.desktop
+%endif
+@ybindir@/sched_config.sh
+@scrconfdir@/*.scr
+%doc @docdir@
