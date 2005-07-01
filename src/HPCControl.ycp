@@ -1,0 +1,230 @@
+/**************
+FILE          : HPCControl.ycp
+***************
+PROJECT       : YaST2 - Yet another Setup Tool
+              :
+AUTHOR        : Thomas Hofmann <thofmann@suse.de>
+              :
+BELONGS TO    : YaST2 - HPC Setup Module
+              :
+DESCRIPTION   : A module for setting up a HPC-Cluster-Scheduling System
+              : with necessary environment
+              :
+STATUS        : Development
+**************/
+/*! \brief YaST2 - HPC interface (UI part)
+*
+* File:        HPCControl.ycp
+* Package:     hpc Configuration
+* Summary:     Main Module started if yast2 hpc is called
+* Authors:     Thomas Hofmann <thofmann@suse.de>
+*/
+{ //begin
+module "HPCControl";
+
+textdomain "hpc";
+
+import "Package";
+import "Service";
+
+
+
+//------------------------------------------
+// check required Packages and install...
+//------------------------------------------
+global define any installPackages( list<string> requiredPacs )
+``{
+        return Package::InstallAllMsg (
+                requiredPacs, _("There are packages missing! \n Do you want to install these packages ?")
+        ) ? `auto : nil;
+};
+
+
+
+//---------------------------------------------
+// check required services if running
+//---------------------------------------------
+
+global define boolean HPCServiceCheck( string service )
+``{
+
+        integer status = Service::Status ( service );
+y2milestone ("status is %1", status);
+	// return true if service is running
+        if ( status == 0 )
+        {
+	return true;
+        }
+	else return false;
+};
+
+
+//---------------------------------------------
+// start required services
+//---------------------------------------------
+
+global define boolean HPCServiceStart( string service )
+``{
+
+        boolean start = Service::Start ( service );
+
+	// return true if service is running
+        if ( start == true )
+        {
+	return true;
+        }
+	else return false;
+};
+
+
+
+//-----------------------------------------------------------------
+// load configure-files for MultiLineEdit - Advanced Mode
+//-----------------------------------------------------------------
+
+// Read Queue Configuration from QMGR
+
+global define string HPCQueueConfig()
+``{
+	string qconfig = nil;
+
+	if (SCR::Execute (.target.bash, "/opt/pbs/bin/qmgr -c \042 print server \042 > /tmp/queue.conf") == 0)
+		{
+		qconfig = (string)SCR::Read (.target.string, "/tmp/queue.conf");
+
+		SCR::Execute (.target.bash, "rm -rf /tmp/queue.conf");
+//		y2milestone ("... qconfig read and deleted ...");
+		}
+
+	else
+		{
+		// qconfig = nil;
+
+		}
+
+	return qconfig;
+
+};
+
+
+// Read Scheduler Configuration from file
+
+global define string HPCSchedConfig()
+``{
+	string schedconfig = nil;
+
+	if (SCR::Execute (.target.bash, "/usr/bin/test -e /var/spool/pbs/sched_priv/sched_config") == 0)
+		{
+		schedconfig = (string)SCR::Read (.target.string, "/var/spool/pbs/sched_priv/sched_config");
+
+//		y2milestone ("... sched_config read ...");
+		}
+
+//	else { y2milestone ("... reading failed ...");}
+
+	return schedconfig;
+
+};
+
+
+
+//-----------------------------------------------------------------
+// detect Queue Properties & Kind of Configure (Simple / Advanced)
+//-----------------------------------------------------------------
+
+global define list getQProperties()
+{
+	list properties = nil;
+
+	string SQName = _("not available");
+
+	string SQWalltime = _("not available");
+
+	string PQName = _("not available");
+
+	string PQWalltime = _("not available");
+
+	string PQNodes = _("not available");
+/*
+	if ( HPCQueueConfig() == nil )
+	{
+	map out = (map)SCR::Execute (.target.bash_output, "/opt/pbs/bin/qmgr -c \042 print server \042 > /tmp/queue.conf");
+        string error = (string)out["stderr"]:nil;
+        UI::OpenDialog(
+                        `VBox(	`Label(_("The Following Error caused the installation to abort:")),
+				`Label(error),
+				`PushButton("&Abort Installation")
+                             )
+                      );
+
+	UI::UserInput();
+	break;
+	y2milestone ("--------error-loop--------");
+	UI::CloseDialog();
+	};
+*/
+	properties = [ SQName, SQWalltime, PQName, PQWalltime, PQNodes ];
+	return properties;
+
+
+};
+
+
+
+
+global define any getUserSkills()
+{
+	list userskill = nil;
+	return userskill;
+};
+
+//-----------------------------------------
+// Check if User made changes
+//-----------------------------------------
+
+global define boolean have_changes_check()
+{
+	boolean status = true;
+        return status;
+};
+
+
+//-----------------------------------------------------------------
+// detect configure-files for ComboBox - Advanced Mode
+//-----------------------------------------------------------------
+
+global define any comboboxfiles()
+{
+	list filestoedit = nil;
+	filestoedit =	[`item(`id(`sched), _("Scheduler Configuration") ),
+			 `item(`id(`queue), _("Queue Configuration"), true )
+			];
+	return filestoedit;
+};
+
+
+//-----------------------------------------------------------------
+// detect Content of Nodes Table
+//-----------------------------------------------------------------
+
+
+global define list NodesTableContent()
+{
+	// in case of error: should return Label "No PBS detected" or something lk that
+	list tableheader = nil;
+	list tableitems = [
+                           `item(`id(1), "n.a.", "-", "-", "-", "-")
+                          ];
+	// list tableitems has to be created dynamically compromising ALL found nodes
+
+	return tableitems;
+};
+
+
+//-----------------------------------------------------------------
+// collect information for Services Table
+//-----------------------------------------------------------------
+
+
+
+}//end

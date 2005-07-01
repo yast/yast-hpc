@@ -1,0 +1,330 @@
+/**************
+FILE          : HPCMain.ycp
+***************
+PROJECT       : YaST2 - Yet another Setup Tool
+              :
+AUTHOR        : Thomas Hofmann <thofmann@suse.de>
+              :
+BELONGS TO    : YaST2 - HPC Setup Module
+              :
+DESCRIPTION   : A module for setting up a HPC-Cluster-Scheduling System
+              : with necessary environment
+              :
+STATUS        : Development
+**************/
+/*! \brief YaST2 - HPC interface (UI part)
+*
+* File:        HPCMain.ycp
+* Package:     hpc Configuration
+* Summary:     Main Module started if yast2 hpc is called
+* Authors:     Thomas Hofmann <thofmann@suse.de>
+*/
+{ //begin
+textdomain "hpc";
+
+import "Mode";
+import "Stage";
+import "Report";
+import "Wizard";
+import "Popup";
+import "Confirm";
+import "Progress";
+
+
+import "HPCControl";
+
+include "hpc/HPCDialog.ycp";
+
+Wizard::OpenAcceptDialog();
+
+
+//------------------------------------------
+//initial settings
+//------------------------------------------
+
+list queuesettings = HPCControl::getQProperties();
+
+term current_tab = Server_Tab(queuesettings);
+
+string current_help = HPCServerSetupDialogHelpText();
+
+boolean abort = false;
+
+list<string> requiredPacs = [
+                "OpenPBS", "OpenPBS-clients", "OpenPBS-server", "OpenPBS-scheduler", "OpenPBS-utils", "openssh", "nfs-utils", "ypbind", "ypserv", "yp-tools", "asl"
+        ];
+
+
+
+//------------------------------------------
+// show initialization Progress ...
+//------------------------------------------
+
+	string window_title = _("Initializing HPC-Setup");     // window title
+        string progress_title = _(" ");                        // progress title
+        integer length = 5;                              // length
+        list<string> stages = [
+            // progress stage, text in dialog (short) (infinitive)
+            _("Check required packages"),
+            // progress stage, text in dialog (short) (infinitive)
+            _("Check required services"),
+            // progress stage, text in dialog (short) (infinitive)
+            _("Check required files"),
+            // progress stage, text in dialog (short) (infinitive)
+            _("Read firewall settings"),
+         ];
+        list<string> titles = [
+            // progress step, text in dialog (short)
+            _("Checking required packages..."),
+            // progress step, text in dialog (short)
+            _("Checking required services..."),
+            // progress step, text in dialog (short)
+            _("Checking required files..."),
+            // progress step, text in dialog (short)
+            _("Reading firewall settings..."),
+         ];
+        string help = _("progress help text");
+        Progress::New(
+                        window_title,
+                        progress_title,
+                        length,
+                        stages,
+                        titles,
+                        help
+        );
+
+
+
+
+
+//------------------------------------------
+// check required Packages and install...
+//------------------------------------------
+
+if ( HPCControl::installPackages( requiredPacs ) == nil)
+{
+	return `nil;
+}
+
+Progress::NextStage();
+
+//---------------------------------------------------------
+// check required services if running & start if necessary
+//---------------------------------------------------------
+{
+
+// check pbs_server
+boolean started = false;
+boolean HPCServices = HPCControl::HPCServiceCheck( "pbs_server");
+
+
+	if ( HPCServices != true )
+	{
+		started = HPCControl::HPCServiceStart("pbs_server");
+	}
+	else
+	{
+	started = true;
+	y2milestone("------------pbs_server is running------------");
+	}
+
+	if (started == false)
+	{
+	y2milestone("------------pbs_server could not be started------------");
+	return `nil;
+	}
+
+//check pbs_scheduler
+started = false;
+HPCServices = HPCControl::HPCServiceCheck( "pbs_sched");
+
+	if ( HPCServices != true )
+	{
+		started = HPCControl::HPCServiceStart("pbs_sched");
+	}
+	else
+	{
+	started = true;
+	y2milestone("------------pbs_scheduler is running------------");
+	}
+
+	if (started == false)
+	{
+	y2milestone("------------pbs_scheduler could not be started------------");
+	return `nil;
+	}
+
+}
+
+Progress::NextStage();
+
+//------------------------------------------
+// check required files
+//------------------------------------------
+
+
+//if return value != 0 then UI::OpenDialog mit return value!
+
+// rückgabe-werte: error-msg, oder true
+
+if ( HPCControl::HPCQueueConfig() == nil )
+        {
+        map out = (map)SCR::Execute (.target.bash_output, "/opt/pbs/bin/qmgr -c \042 print server \042 > /tmp/queue.conf");
+        string error = (string)out["stderr"]:nil;
+        UI::OpenDialog(
+                        `VBox(  `Label(_("The Following Error caused the installation to abort:")),
+                                `Label(error),
+                                `PushButton(_("&Abort Installation"))
+                             )
+                      );
+
+        UI::UserInput();
+        y2milestone ("--------error-loop--------");
+        UI::CloseDialog();
+	return `nil;
+        };
+
+
+if ( HPCControl::HPCSchedConfig() == nil )
+        {
+        map out = (map)SCR::Execute (.target.bash_output, "/opt/pbs/bin/qmgr -c \042 print server \042 > /tmp/queue.conf");
+        string error = (string)out["stderr"]:nil;
+        UI::OpenDialog(
+                        `VBox(  `Label(_("The Following Error caused the installation to abort:")),
+                                `Label(error),
+                                `PushButton(_("&Abort Installation"))
+                             )
+                      );
+
+        UI::UserInput();
+        y2milestone ("--------error-loop--------");
+        UI::CloseDialog();
+	return `nil;
+        };
+
+Progress::Finish();
+
+
+
+//--------------------------------
+// arrange tab-structure
+//--------------------------------
+
+term setup_dialog = `VBox(
+			 `DumbTab( [
+				    `item(`id(`server  ), _("&Server"), true  ), //initially Server-Tab selected
+				    `item(`id(`services  ), _("Ser&vices") ),
+				    `item(`id(`nodes ), _("&Nodes") )
+				   ],
+				   `HCenter(
+					 `Top(
+					      `HVSquash(
+							`VBox(
+							      `VSpacing(0.3),
+							      `HBox(
+								    `HSpacing(1),
+								    `ReplacePoint(`id(`tabContents ), current_tab )
+								   )
+							     )
+							)
+					      )
+					 )
+				 )
+			);
+
+
+
+//--------------------------------
+// initial Widget creation
+//--------------------------------
+
+Wizard::SetContents(
+	_("PBS Server / Client configuration"),setup_dialog, current_help,
+	(boolean) WFM::Args(0), (boolean) WFM::Args(1)
+	);
+
+
+
+//--------------------------------
+// Event loop
+//--------------------------------
+
+any ret = nil;
+
+repeat {
+	ret = Wizard::UserInput();
+
+	// Exit Event Loop
+	if	( ret == `cancel || ret == `abort || ret == `back )
+	{
+		abort = reallycancel();
+		if (abort == true) break;
+	}
+
+	// Call Server-Tab
+	if	( ret == `server || ret == `ssettings )
+	{
+		current_tab = Server_Tab(queuesettings);
+		UI::ReplaceWidget(`tabContents, current_tab);
+		Wizard::SetHelpText( HPCServerSetupDialogHelpText() );
+	}
+
+
+	// Call Advanced Settings
+	if	( ret == `asettings )
+	{
+		current_tab = Advanced_Tab();
+		UI::ReplaceWidget(`tabContents, current_tab);
+		Wizard::SetHelpText( HPCAdvancedSetupDialogHelpText() );
+	}
+/*
+	// switch editable Text to 'Scheduler Configuration' in Advanced Settings --> MultiLineEdit
+	if	( choice == `sched )
+	{
+		string file = "/var/spool/pbs/sched_priv/sched_config";
+		configtext = "Editor not yet implemented";;
+		UI::ChangeWidget(`id(`ExpertsConfiguration), `Value, configtext);
+		UI::RecalcLayout();
+	}
+
+	// switch editable Text to 'Queue Configuration' in Advanced Settings --> MultiLineEdit
+	if	( choice == `queue )
+	{
+		configtext = "Editor not yet implemented";
+		UI::ChangeWidget(`id(`ExpertsConfiguration), `Value, configtext);
+		UI::RecalcLayout();
+	}
+*/
+	// Call Nodes-Tab
+	if	( ret == `nodes )
+	{
+		current_tab = Nodes_Tab();
+		UI::ReplaceWidget(`tabContents, current_tab);
+		Wizard::SetHelpText( HPCNodesSetupDialogHelpText() );
+	}
+
+	// Call Services-Tab
+	if	( ret == `services )
+	{
+		current_tab = Services_Tab();
+		UI::ReplaceWidget(`tabContents, current_tab);
+		Wizard::SetHelpText( HPCServicesSetupDialogHelpText() );
+	}
+
+
+
+
+	// Debugging stuff
+
+//	y2milestone ("... choice is %1 ...", choice);
+
+	y2milestone ("... ret is %1 ...", ret);
+
+	y2milestone ("..................UI-Loop passed ...................");
+
+    } until ( false);
+
+Wizard::CloseDialog();
+
+} //end
+

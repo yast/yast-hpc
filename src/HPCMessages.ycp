@@ -1,0 +1,52 @@
+/**************
+FILE          : HPCMessages.ycp
+***************
+PROJECT       : YaST2 - Yet another Setup Tool
+              :
+AUTHOR        : Thomas Hofmann <thofmann@suse.de>
+              :
+BELONGS TO    : YaST2 - HPC Setup Module
+              :
+DESCRIPTION   : A module for setting up a HPC-Cluster-Scheduling System
+              : with necessary environment
+              :
+STATUS        : Development
+**************/
+/*! \brief YaST2 - HPC interface (UI part)
+*
+* File:        HPCMessages.ycp
+* Package:     hpc Configuration
+* Summary:     Main Module started if yast2 hpc is called
+* Authors:     Thomas Hofmann <thofmann@suse.de>
+*/
+
+{ //begin
+module "HPCMessages";
+
+textdomain "hpc";
+//-------------------------------------
+// help text on the left side
+//-------------------------------------
+global string helpTextServerconfig = _("
+<p>PBS-Queue Setup</p>Here you can configure the Queues ..... bla bla bla... 
+");
+
+global string helpTextAdvancedconfig = _("
+Here you can configure the Queues ..... bla bla bla... 
+");
+
+global string helpTextNodesconfig = _("
+Here you can configure the Nodes ..... bla bla bla... 
+");
+
+global string helpTextServicesconfig = _("
+Here you can configure the Services ..... bla bla bla... 
+");
+
+//-------------------------------------
+// help text for command line mode
+//-------------------------------------
+global string helpCMD = _("
+HPC configuration module.
+");
+} //end

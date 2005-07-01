@@ -1,0 +1,246 @@
+/**************
+FILE          : HPCDialog.ycp
+***************
+PROJECT       : YaST2 - Yet another Setup Tool
+              :
+AUTHOR        : Thomas Hofmann <thofmann@suse.de>
+              :
+BELONGS TO    : YaST2 - HPC Setup Module
+              :
+DESCRIPTION   : A module for setting up a HPC-Cluster-Scheduling System
+	      :	with necessary environment
+              :
+STATUS        : Development
+**************/
+/*! \brief YaST2 - HPC interface (UI part)
+*
+* File:        HPCDialog.ycp
+* Package:     simple Configuration
+* Summary:     Main Module started if yast2 simple is called
+* Authors:     Thomas Hofmann <thofmann@suse.de>
+*/
+{  // begin
+	textdomain "hpc";
+
+	import "Wizard";
+	import "SCR";
+
+	import "HPCControl";
+	import "HPCMessages";
+
+
+
+
+
+//---------------------------------------------------
+// Show Progress during initialization
+//---------------------------------------------------
+/*
+define term InitProgress(void)
+``{
+	string window_title = _("Initializing HPC-Setup");     // window title
+	string progress_title = _(" ");                        // progress title
+	integer length = 5;                              // length
+	list<string> stages = [
+	    // progress stage, text in dialog (short) (infinitive)
+	    _("Check required packages"),
+	    // progress stage, text in dialog (short) (infinitive)
+	    _("Check required services"),
+	    // progress stage, text in dialog (short) (infinitive)
+	    _("Check required files"),
+	    // progress stage, text in dialog (short) (infinitive)
+	    _("Read firewall settings"),
+	 ];
+	list<string> titles = [
+	    // progress step, text in dialog (short)
+	    _("Checking required packages..."),
+	    // progress step, text in dialog (short)
+	    _("Checking required services..."),
+	    // progress step, text in dialog (short)
+	    _("Checking required files..."),
+	    // progress step, text in dialog (short)
+	    _("Reading firewall settings..."),
+	 ];
+	string help = _("progress help text");
+	Progress::New(
+			window_title,
+			progress_title,
+			length,
+			stages,
+			titles,
+			help
+	);
+
+
+
+};
+
+*/
+
+//-----------------------------------------
+// Setup configuration dialog
+//-----------------------------------------
+
+
+// Server-Tab UI
+define term Server_Tab( list queuesettings )
+``{
+	term this_tab = `VBox(
+				`VSpacing(1),
+			//	`HSpacing(`opt(`hstretch),(50)),
+				`Frame(_("&Serial Queue"),
+				   `VBox(
+					`HWeight(20,`TextEntry(`id( `sqname ), _("&Queuename:"), queuesettings[0]:"error" )),
+					`HWeight(10,`TextEntry(`id( `sqwalltime ), _("&Walltime:"), queuesettings[1]:"error" ))
+					)
+				      ),
+				`VSpacing(1),
+				`Frame(_("&Parallel Queue"),
+				   `VBox(
+			//		`HSpacing(20),
+					`TextEntry(`id( `pqname ), _("Q&ueuename:"), queuesettings[2]:"error" ),
+					`TextEntry(`id( `pqwalltime ), _("Wall&time:"), queuesettings[3]:"error" ),
+					`TextEntry(`id( `pqnumber ), _("Number of &Nodes:"), queuesettings[4]:"error" )
+					)
+				      ),
+				`VSpacing(1),
+				`PushButton(`id( `asettings ), _("A&dvanced Settings"))
+			     );
+	return this_tab;
+};
+
+
+// Advanced Server-Tab UI
+define term Advanced_Tab()
+``{
+	term this_tab = `VBox(
+				      `VSpacing(1),
+				      `Frame(_("Experts Configuration"),
+					     `VBox(
+						   `HSpacing(70),
+						   `ComboBox(	`id(`edit), `opt(`notify),
+								_( "Se&lect Configuration File:"),
+								HPCControl::comboboxfiles()
+							    ),
+						   `HBox(
+							   `VSpacing(`opt(`vstretch), 13),
+								//MultiLineEdit: ID, Label, initial Value
+							   `MultiLineEdit(`id(`ExpertsConfiguration),`opt(`notify), "&Edit current Configuration:"
+									  )
+							),
+						   `VSpacing(`opt(`vstretch), 1),
+						   `HBox(
+							`PushButton(`id( `ssettings ), _("&Back")),
+							`PushButton(`id( `saveconfig ),`opt(`disabled), _("&Save"))
+							)
+						   )
+					     )
+				);
+	return this_tab;
+};
+
+
+// Nodes-Tab UI
+define term Nodes_Tab()
+``{
+	term this_tab =	`VBox(
+				`VSpacing(1),
+				`Frame(_("Nodes Configuration"),
+				   `VBox(
+					`HSpacing(70),
+					`HBox(
+						`VSpacing(`opt(`vstretch), 5),
+						`Table(`header (_("IP-Address"),_("Cluster-Node"), _("Name"), _("CPUs"), _("status")),
+						HPCControl::NodesTableContent()
+						      )
+					     ),
+					`VSpacing(`opt(`vstretch),2),
+					`HBox(
+						`PushButton(`id(`togglenodes), _("A&ssimilate Node")),
+						`HSpacing(`opt(`hstretch), 0.5),
+						`ComboBox(`id(`CPUs), _("Choose &Nr of CPUs"),
+						[`item(`id(`one), _("1"), true ),
+                                                              `item(`id(`two), _("2"))
+                                                ]	 ),
+						`HSpacing(`opt(`hstretch), 0.5),
+						`PushButton(`id(`transmit), _("&Transmit"))
+					     )
+					)
+				      )
+				);
+	return this_tab;
+};
+
+// Services-Tab UI
+define term Services_Tab() ``{
+	term this_tab =	`VBox(
+				`VSpacing(1),
+				`Frame(_("NIS Configuration"),
+				  `VBox(`HSpacing(20),
+				   `Label(_("configure this machine as:")),
+				   `VSpacing(`opt(`vstretch), 1),
+				   `PushButton(`id(`nissrv), "NIS-&Server"),
+				   `PushButton(`id(`nisclnt), "&NIS-Client")
+				       )
+				     )
+			      );
+	return this_tab;
+		};
+
+
+
+//-----------------------------------------
+// Really cancel ? - Dialog
+//-----------------------------------------
+
+define boolean reallycancel()
+``{
+	boolean status = HPCControl::have_changes_check() ;
+	boolean abort = Popup::ReallyAbort ( status );
+	return abort;
+};
+
+
+
+//-----------------------------------------
+// HPCServerSetupDialogHelpText
+//-----------------------------------------
+
+define string HPCServerSetupDialogHelpText ()
+``{
+	// Help text for ServerClient configuration
+	return HPCMessages::helpTextServerconfig;
+};
+
+
+//-----------------------------------------
+// HPCAdvancedSetupDialogHelpText
+//-----------------------------------------
+
+define string HPCAdvancedSetupDialogHelpText ()
+``{
+	// Help text for ServerClient configuration
+	return HPCMessages::helpTextServerconfig;
+};
+
+
+//-----------------------------------------
+// HPCNodesSetupDialogHelpText
+//-----------------------------------------
+define string HPCNodesSetupDialogHelpText ()
+``{
+	// Help text for ServerClient configuration
+	return HPCMessages::helpTextNodesconfig;
+};
+
+//-----------------------------------------
+// HPCServicesSetupDialogHelpText
+//-----------------------------------------
+
+define string HPCServicesSetupDialogHelpText ()
+``{
+	// Help text for ServerClient configuration
+	return HPCMessages::helpTextServicesconfig;
+};
+
+} //end

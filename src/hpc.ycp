@@ -1,0 +1,60 @@
+/**************
+FILE          : HPCDialog.ycp
+***************
+PROJECT       : YaST2 - Yet another Setup Tool
+              :
+AUTHOR        : Thomas Hofmann <thofmann@suse.de>
+              :
+BELONGS TO    : YaST2 - HPC Setup Module
+              :
+DESCRIPTION   : A module for setting up a HPC-Cluster-Scheduling System
+              : with necessary environment
+              :
+STATUS        : Development
+**************/
+/*! \brief YaST2 - HPC interface (UI part)
+*
+* File:        HPCDialog.ycp
+* Package:     simple Configuration
+* Summary:     Main Module started if yast2 simple is called
+* Authors:     Thomas Hofmann <thofmann@suse.de>
+*/
+{ //begin
+textdomain "hpc";
+
+import "HPCMessages";
+import "Wizard";
+import "Popup";
+import "Mode";
+import "CommandLine";
+
+//---------------------------------
+// setup GUI handler routine
+//---------------------------------
+define boolean GUIHandler ()
+	{
+	any ret = WFM::CallFunction ("HPCMain", [true, true]);
+	if ((ret == `abort) || (ret == `back) || (ret == nil))
+		{
+			return false;
+		}
+	return true;
+	};
+
+//---------------------------------
+// setup CommandLine Description
+//---------------------------------
+map cmdlineDescription = $[
+	"id"		:  "hpc",
+	"guihandler"	:  GUIHandler,
+	"help"		:  HPCMessages::helpCMD
+];
+
+//---------------------------------
+// run module now
+//---------------------------------
+any ret = CommandLine::Run (
+	cmdlineDescription
+	);
+return ret;
+}
