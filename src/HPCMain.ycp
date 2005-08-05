@@ -29,9 +29,10 @@ import "Wizard";
 import "Popup";
 import "Confirm";
 import "Progress";
-
+import "CommandLine";
 
 import "HPCControl";
+import "NfsServer";
 
 include "hpc/HPCDialog.ycp";
 
@@ -51,7 +52,7 @@ string current_help = HPCServerSetupDialogHelpText();
 boolean abort = false;
 
 list<string> requiredPacs = [
-                "OpenPBS", "OpenPBS-clients", "OpenPBS-server", "OpenPBS-scheduler", "OpenPBS-utils", "openssh", "nfs-utils", "ypbind", "ypserv", "yp-tools", "asl"
+                "OpenPBS", "OpenPBS-clients", "OpenPBS-server", "OpenPBS-scheduler", "OpenPBS-utils", "openssh", "nfs-utils", "ypbind", "ypserv", "yp-tools", "nmap"
         ];
 
 
@@ -62,7 +63,7 @@ list<string> requiredPacs = [
 
 	string window_title = _("Initializing HPC-Setup");     // window title
         string progress_title = _(" ");                        // progress title
-        integer length = 5;                              // length
+        integer length = 6;                              // length
         list<string> stages = [
             // progress stage, text in dialog (short) (infinitive)
             _("Check required packages"),
@@ -70,6 +71,8 @@ list<string> requiredPacs = [
             _("Check required services"),
             // progress stage, text in dialog (short) (infinitive)
             _("Check required files"),
+            // progress stage, text in dialog (short) (infinitive)
+            _("Collect node information"),
             // progress stage, text in dialog (short) (infinitive)
             _("Read firewall settings"),
          ];
@@ -80,6 +83,8 @@ list<string> requiredPacs = [
             _("Checking required services..."),
             // progress step, text in dialog (short)
             _("Checking required files..."),
+            // progress step, text in dialog (short)
+            _("Collecting node information..."),
             // progress step, text in dialog (short)
             _("Reading firewall settings..."),
          ];
@@ -202,6 +207,27 @@ if ( HPCControl::HPCSchedConfig() == nil )
 	return `nil;
         };
 
+Progress::NextStage();
+
+//------------------------------------------
+// collect node information
+//------------------------------------------
+
+list ndscontent = HPCControl::NodesTableContent();
+
+if (ndscontent == nil)
+	{
+	UI::OpenDialog(
+                        `VBox(  `Label(_("There were no Hosts to contact for the YaST-Module:")),
+                                `PushButton(_("&Abort Installation"))
+                             )
+			);
+	UI::UserInput();
+	y2milestone("-------- didn't find any hosts ----------");
+	UI::CloseDialog();
+	return `nil;
+	};
+
 Progress::Finish();
 
 
@@ -251,8 +277,31 @@ Wizard::SetContents(
 
 any ret = nil;
 
+string sched_edit = nil;
+
+string sharedir = "/hpccommon";
+
 repeat {
 	ret = Wizard::UserInput();
+
+	if	( current_tab == Advanced_Tab() )
+	{
+		sched_edit = (string)UI::QueryWidget(`id(`ExpertsConfiguration), `Value);
+
+        // enable save-Button
+		if      ( sched_edit != nil)
+		{
+			UI::ChangeWidget(`saveconfig, `Enabled, true);
+		}
+
+	// save edited configuration file
+	        if      ( ret == `saveconfig )
+	        {
+	                HPCControl::HPCwriteSchedConfig(sched_edit);
+	                UI::ChangeWidget(`saveconfig, `Enabled, false);
+	                y2milestone("-------------- saving scheduler config ---------------");
+	        }
+	}
 
 	// Exit Event Loop
 	if	( ret == `cancel || ret == `abort || ret == `back )
@@ -277,28 +326,12 @@ repeat {
 		UI::ReplaceWidget(`tabContents, current_tab);
 		Wizard::SetHelpText( HPCAdvancedSetupDialogHelpText() );
 	}
-/*
-	// switch editable Text to 'Scheduler Configuration' in Advanced Settings --> MultiLineEdit
-	if	( choice == `sched )
-	{
-		string file = "/var/spool/pbs/sched_priv/sched_config";
-		configtext = "Editor not yet implemented";;
-		UI::ChangeWidget(`id(`ExpertsConfiguration), `Value, configtext);
-		UI::RecalcLayout();
-	}
 
-	// switch editable Text to 'Queue Configuration' in Advanced Settings --> MultiLineEdit
-	if	( choice == `queue )
-	{
-		configtext = "Editor not yet implemented";
-		UI::ChangeWidget(`id(`ExpertsConfiguration), `Value, configtext);
-		UI::RecalcLayout();
-	}
-*/
+
 	// Call Nodes-Tab
 	if	( ret == `nodes )
 	{
-		current_tab = Nodes_Tab();
+		current_tab = Nodes_Tab(ndscontent);
 		UI::ReplaceWidget(`tabContents, current_tab);
 		Wizard::SetHelpText( HPCNodesSetupDialogHelpText() );
 	}
@@ -311,7 +344,29 @@ repeat {
 		Wizard::SetHelpText( HPCServicesSetupDialogHelpText() );
 	}
 
+	// Call NIS-SERVER Dialog
+	if	( ret == `nissrv )
+	{
+		WFM::CallFunction ("nis_server");
+	}
 
+	// Call NIS-SERVER Dialog
+	if	( ret == `nisclnt )
+	{
+		WFM::CallFunction ("nis");
+	}
+
+	// Call DHCP-SERVER Dialog
+	if	( ret == `dhcpsrv )
+	{
+		WFM::CallFunction ("dhcp-server");
+	}
+
+	// Change NFS-Directory
+	if	( ret == `change_nfs )
+	{
+	// start nfs:_change
+	}
 
 
 	// Debugging stuff

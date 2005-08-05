@@ -104,7 +104,7 @@ define term Server_Tab( list queuesettings )
 					)
 				      ),
 				`VSpacing(1),
-				`PushButton(`id( `asettings ), _("A&dvanced Settings"))
+				`PushButton(`id( `asettings ), _("Scheduler Configuration"))
 			     );
 	return this_tab;
 };
@@ -114,34 +114,26 @@ define term Server_Tab( list queuesettings )
 define term Advanced_Tab()
 ``{
 	term this_tab = `VBox(
-				      `VSpacing(1),
-				      `Frame(_("Experts Configuration"),
-					     `VBox(
-						   `HSpacing(70),
-						   `ComboBox(	`id(`edit), `opt(`notify),
-								_( "Se&lect Configuration File:"),
-								HPCControl::comboboxfiles()
-							    ),
-						   `HBox(
-							   `VSpacing(`opt(`vstretch), 13),
-								//MultiLineEdit: ID, Label, initial Value
-							   `MultiLineEdit(`id(`ExpertsConfiguration),`opt(`notify), "&Edit current Configuration:"
-									  )
-							),
-						   `VSpacing(`opt(`vstretch), 1),
-						   `HBox(
-							`PushButton(`id( `ssettings ), _("&Back")),
-							`PushButton(`id( `saveconfig ),`opt(`disabled), _("&Save"))
-							)
-						   )
-					     )
+				`VSpacing(1),
+				`HSpacing(70),
+				`HBox(
+				   `VSpacing(`opt(`vstretch), 18),
+					//MultiLineEdit: ID, Label, initial Value
+				   `MultiLineEdit(`id(`ExpertsConfiguration),`opt(`notify), "&Edit scheduler Configuration:", HPCControl::HPCSchedConfig()
+						 )
+				     ),
+				   `VSpacing(`opt(`vstretch), 1),
+				   `HBox(
+					`PushButton(`id( `ssettings ), _("&Back")),
+					`PushButton(`id( `saveconfig ),`opt(`disabled), _("&Save"))
+					)
 				);
 	return this_tab;
 };
 
 
 // Nodes-Tab UI
-define term Nodes_Tab()
+define term Nodes_Tab(list ndscontent)
 ``{
 	term this_tab =	`VBox(
 				`VSpacing(1),
@@ -149,9 +141,9 @@ define term Nodes_Tab()
 				   `VBox(
 					`HSpacing(70),
 					`HBox(
-						`VSpacing(`opt(`vstretch), 5),
+						`VSpacing(`opt(`vstretch), 15),
 						`Table(`header (_("IP-Address"),_("Cluster-Node"), _("Name"), _("CPUs"), _("status")),
-						HPCControl::NodesTableContent()
+						ndscontent
 						      )
 					     ),
 					`VSpacing(`opt(`vstretch),2),
@@ -176,12 +168,50 @@ define term Services_Tab() ``{
 	term this_tab =	`VBox(
 				`VSpacing(1),
 				`Frame(_("NIS Configuration"),
-				  `VBox(`HSpacing(20),
-				   `Label(_("configure this machine as:")),
-				   `VSpacing(`opt(`vstretch), 1),
-				   `PushButton(`id(`nissrv), "NIS-&Server"),
-				   `PushButton(`id(`nisclnt), "&NIS-Client")
-				       )
+				  `VBox(`HSpacing(60),
+					`Left(`Label(_("Configure this machine as:"))),
+					`HBox(
+						`VSpacing(`opt(`vstretch), 1),
+						`PushButton(`id(`nissrv), "NIS-&Server"),
+						`HSpacing(10),
+						`PushButton(`id(`nisclnt), "&NIS-Client"),
+						`VSpacing(2)
+					      )
+					)
+				     ),
+				`VSpacing(1),
+				`Frame(_("NFS Configuration"),
+					`VBox(
+						`VSpacing(`opt(`vstretch), 1),
+						`Left(`Label(_("Share Directory where common data will be exported to other Nodes:"))),
+						`VSpacing(`opt(`vstretch), 1),
+						`HBox(
+						`TextEntry(`id(`mountpoint), _("Mountpoint")),
+						`HSpacing(5),
+						`TextEntry(`id(`hosts), _("Hosts"), "*"),
+						`HSpacing(5),
+						`TextEntry(`id(`options), _("Options"), "rw,root_squash,sync")
+						     ),
+						`VSpacing(`opt(`vstretch), 0.5)
+					)
+				     ),
+				`VSpacing(1),
+				`Frame(_("SSH Configuration"),
+					`VBox(
+						`VSpacing(`opt(`vstretch), 1),
+						`Left(`Label(HPCControl::SSHAvail("192.168.123.12"))),
+						`VSpacing(`opt(`vstretch), 1),
+						`Left(`Label(HPCControl::SSHAvail("192.168.123.13"))),
+						`VSpacing(`opt(`vstretch), 1)
+					)
+				     ),
+				`VSpacing(1),
+				`Frame(_("DHCP Configuration"),
+					`VBox(
+							`VSpacing(`opt(`vstretch), 1),
+							`PushButton(`id(`dhcpsrv), "DHCP-Server"),
+							`VSpacing(1)
+					)
 				     )
 			      );
 	return this_tab;

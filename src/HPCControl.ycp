@@ -60,6 +60,24 @@ y2milestone ("status is %1", status);
 
 
 //---------------------------------------------
+// restart required services
+//---------------------------------------------
+
+global define boolean HPCServiceRestart( string service )
+``{
+
+        boolean start = Service::Restart ( service );
+
+        // return true if service is running
+        if ( start == true )
+        {
+        return true;
+        }
+        else return false;
+};
+
+
+//---------------------------------------------
 // start required services
 //---------------------------------------------
 
@@ -75,6 +93,48 @@ global define boolean HPCServiceStart( string service )
         }
 	else return false;
 };
+
+/*
+//-------------------------------------------------
+// Create Queue Tree-Term
+//-------------------------------------------------
+global define term HPCQueueTree()
+{
+	term ret= `VBox(
+			`Tree(	`id(`queue),
+				`opt(notify),
+				_("Available Queues:"),
+				HPCControl::Queuelist()
+			     ),
+			`HBox(
+				`PushButton(`id(`create), _("Create Queue")),
+				`PushButton(`id(`delete), _("Delete Queue"))
+			     )
+		     );
+	return ret;
+};
+
+
+
+//-------------------------------------------------
+// Create Queue list (item list)
+//-------------------------------------------------
+global define list Queuelist()
+{
+	`item(),""
+
+};
+
+
+
+*/
+
+
+
+
+
+
+
 
 
 
@@ -126,6 +186,14 @@ global define string HPCSchedConfig()
 
 };
 
+// Write Scheduler Configuration from file
+
+global define void HPCwriteSchedConfig( string configtext )
+``{
+        SCR::Write (.target.string, "/var/spool/pbs/sched_priv/sched_config", configtext);
+        HPCControl::HPCServiceRestart("pbs_sched");
+	//TODO  Return failed if service does not start
+};
 
 
 //-----------------------------------------------------------------
@@ -204,26 +272,190 @@ global define any comboboxfiles()
 
 
 //-----------------------------------------------------------------
+// collect information about nodes 
+//-----------------------------------------------------------------
+
+// Collect information by querying IPs
+
+// get name from IP
+global define string name(string ip)
+{
+	string command = ("/usr/lib/YaST2/bin/nodes_ip.sh name "+ip);
+	map output = (map) SCR::Execute(.target.bash_output, command);
+	string ret = deletechars( (string)output["stdout"]:"n.a.", "}\n" );
+	return ret;
+};
+
+// determine if computer is member of cluster
+global define string clusternode(string resname)
+{
+	string command = ("/usr/lib/YaST2/bin/nodes_ip.sh clusternode "+resname);
+	map output = (map) SCR::Execute(.target.bash_output, command);
+	string ret = deletechars( (string)output["stdout"]:"n.a.", "\n" );
+	return ret;
+};
+
+// get number of cpus of node $
+global define string cpus(string resname)
+{
+	string command = "/usr/lib/YaST2/bin/nodes_ip.sh cpus "+resname;
+	map output = (map) SCR::Execute(.target.bash_output, command);
+	string ret = deletechars( (string)output["stdout"]:"n.a.", "\n" );
+	return ret;
+
+};
+
+// get status of node
+global define string status(string resname)
+{
+	string command = "/usr/lib/YaST2/bin/nodes_ip.sh status "+resname;
+	map output = (map) SCR::Execute(.target.bash_output, command);
+	string ret = deletechars( (string)output["stdout"]:"not reachable", "\n" );
+	return ret;
+};
+
+
+
+// Collect information by querying 'pbsnodes -a'
+
+// get status of node
+global define string ipaddress(string resname)
+{
+	string command = "/usr/lib/YaST2/bin/nodes_hpc.sh ip "+resname;
+	map output = (map) SCR::Execute(.target.bash_output, command);
+	string ret = deletechars(  (string)output["stdout"]:"n.a.", "\n" );
+	return ret;
+};
+
+
+
+//-----------------------------------------------------------------
 // detect Content of Nodes Table
 //-----------------------------------------------------------------
 
+global define list nodesIP()
+{
+// TODO: in case of error: should return Label "No PBS detected" or something lk that
+
+	string command = "/usr/lib/YaST2/bin/nodes_ip.sh broadcast";
+	map output =(map) SCR::Execute(.target.bash_output, command);
+        string ipaddr = (string)output["stdout"]:"";
+	y2milestone("ipaddr vor splitting %1", ipaddr);
+        list<string> iplist = splitstring(ipaddr,"\n");
+	y2milestone("ipaddr nach splitting %1", iplist);
+
+        integer tableID = 1;
+        list table = [];
+        foreach(string ip, iplist, ``{
+                if (ip != "")
+                {
+                string cname = name(ip);
+                list row = [`item(`id(tableID),
+                                ip,
+                                clusternode(cname),
+                                cname,
+                                cpus(cname),
+                                status(cname)
+                        )];
+                table = union(table,row);
+                y2milestone("foreach id : %1 name: %2",tableID, ip);
+                tableID = tableID+1;
+                }
+        });
+        y2milestone("table : %1", table);
+
+        return table;
+//      return tableitems;
+
+};
+
+
+
+global define list nodesHPC()
+{
+// TODO: in case of error: should return Label "No PBS detected" or something lk that
+
+        string command = "/usr/lib/YaST2/bin/nodes_hpc.sh clusternodes";
+        map output = (map)SCR::Execute(.target.bash_output, command);
+        string nodes = (string)output["stdout"]:"";
+	y2milestone("nodes vor splitting %1", nodes);
+        list<string> nodelist = splitstring(nodes,"\n");
+	y2milestone("nodes nach splitting %1", nodelist);
+
+        integer tableID = 1;
+        list table = [];
+        foreach(string node, nodelist, ``{
+                if (node != "")
+                {
+                string ip = ipaddress(node);
+                list row = [`item(`id(tableID),
+                                ip,
+                                "yes",
+                                node,
+                                cpus(node),
+                                status(node)
+                        )];
+                table = union(table,row);
+                tableID = tableID+1;
+                }
+        });
+	y2milestone("table : %1", table);
+        return table;
+//      return tableitems;
+
+};
+
+// global define list sshContent()
 
 global define list NodesTableContent()
 {
-	// in case of error: should return Label "No PBS detected" or something lk that
-	list tableheader = nil;
-	list tableitems = [
-                           `item(`id(1), "n.a.", "-", "-", "-", "-")
-                          ];
-	// list tableitems has to be created dynamically compromising ALL found nodes
-
-	return tableitems;
+	list ret = union( HPCControl::nodesIP(), HPCControl::nodesHPC() );
+	return ret;
 };
+
+
 
 
 //-----------------------------------------------------------------
 // collect information for Services Table
 //-----------------------------------------------------------------
+
+// Propose NFS-Directory
+global define map NFSmap( string sharedir )
+{
+map ret = $[
+	"mountpoint"	: sharedir,
+	"hosts"		: "*",
+	"options"	: "rw,root_squash,sync",
+	];
+
+return ret;
+};
+
+// Determine ssh-passwordless availibility
+
+global define string SSHAvail ( string ipaddr )
+{
+	string ret = "notAvail";
+	string command = ( "ssh -o BatchMode=yes "+ipaddr+" /tmp/testssh.sh");
+	map output = (map)SCR::Execute(.target.bash_output, command);
+	y2milestone("output from SSHAvail: %1",output);
+	string stdout = (string)output["stdout"]:"blubb";
+	y2milestone("command from SSHAvail: %1",command);
+	if (stdout == "ssh_works\n")
+	{
+	ret = "Avail";
+	}
+	return ret;
+};
+
+
+
+
+
+
+
+
 
 
 
