@@ -87,12 +87,18 @@ fi
 # determine number of cpus
 if [ "$1" == "cpus" ]
 then 
-	pbsnodes -a| fgrep -A2 $2 | grep "np =" |uniq | cut -f8 -d" " 
+	/opt/pbs/bin/pbsnodes -a| fgrep -A2 $2 | grep "np =" |uniq | cut -f8 -d" " 
 fi
 
 # determine status of node
 if [ "$1" == "status" ]
 then 
-	pbsnodes -a| fgrep -A2 $2 | grep "state"|uniq|cut -f8 -d" "
+	/opt/pbs/bin/pbsnodes -a| fgrep -A2 $2 | grep "state"|uniq|cut -f8 -d" "
 
+fi
+
+# test for ssh availibility
+if [ "$1" == "testssh" ]
+then
+	echo "ssh_works"
 fi

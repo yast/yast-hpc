@@ -19,7 +19,7 @@ fi
 #  print all cluster-nodes
 if [ "$1" == "clusternodes" ]
 then 
-	/opt/pbs/bin/pbsnodes -a|cut -f1 -d" "|uniq -u
+	pbsnodes -a|cut -f1 -d" "|uniq -u
 fi
 
 # get ip-address from computer-name
@@ -32,12 +32,12 @@ fi
 # determine number of cpus
 if [ "$1" == "cpus" ]
 then 
-	/opt/pbs/bin/pbsnodes -a| fgrep -A2 $2 | grep "np =" |uniq | cut -f8 -d" " 
+	pbsnodes -a| fgrep -A2 $2 | grep "np =" |uniq | cut -f8 -d" " 
 fi
 
 # determine status of node
 if [ "$1" == "status" ]
 then 
-	/opt/pbs/bin/pbsnodes -a| fgrep -A2 $2 | grep "state"|uniq|cut -f8 -d" "
+	pbsnodes -a| fgrep -A2 $2 | grep "state"|uniq|cut -f8 -d" "
 
 fi
