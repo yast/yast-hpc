@@ -31,81 +31,53 @@ STATUS        : Development
 
 
 
-
-//---------------------------------------------------
-// Show Progress during initialization
-//---------------------------------------------------
-/*
-define term InitProgress(void)
-``{
-	string window_title = _("Initializing HPC-Setup");     // window title
-	string progress_title = _(" ");                        // progress title
-	integer length = 5;                              // length
-	list<string> stages = [
-	    // progress stage, text in dialog (short) (infinitive)
-	    _("Check required packages"),
-	    // progress stage, text in dialog (short) (infinitive)
-	    _("Check required services"),
-	    // progress stage, text in dialog (short) (infinitive)
-	    _("Check required files"),
-	    // progress stage, text in dialog (short) (infinitive)
-	    _("Read firewall settings"),
-	 ];
-	list<string> titles = [
-	    // progress step, text in dialog (short)
-	    _("Checking required packages..."),
-	    // progress step, text in dialog (short)
-	    _("Checking required services..."),
-	    // progress step, text in dialog (short)
-	    _("Checking required files..."),
-	    // progress step, text in dialog (short)
-	    _("Reading firewall settings..."),
-	 ];
-	string help = _("progress help text");
-	Progress::New(
-			window_title,
-			progress_title,
-			length,
-			stages,
-			titles,
-			help
-	);
-
-
-
-};
-
-*/
-
 //-----------------------------------------
 // Setup configuration dialog
 //-----------------------------------------
 
 
 // Server-Tab UI
-define term Server_Tab( list queuesettings )
+define term Server_Tab()
 ``{
+	term this_tab = `VBox(	`HSpacing(60),
+				`VSpacing(1),
+					`HBox(
+						`VBox(	`HSpacing(40),
+							HPCControl::queueTree()
+						     ),
+						`VBox(
+							`HBox(
+							`TextEntry(`id(`queuevalue),"Value:" ),
+							`PushButton(`id(`savequeue),"Save")),
+							`VSpacing(1),
+							`PushButton(`id(`addqueue),"Add"),
+							`PushButton(`id(`deletequeue),"Delete")
+						     )
+					      ),
+				`VSpacing(1),
+				`PushButton(`id( `asettings ), _("edit scheduler config-file"))
+			     );
+/*	OLD TERM
 	term this_tab = `VBox(
 				`VSpacing(1),
-			//	`HSpacing(`opt(`hstretch),(50)),
-				`Frame(_("&Serial Queue"),
-				   `VBox(
-					`HWeight(20,`TextEntry(`id( `sqname ), _("&Queuename:"), queuesettings[0]:"error" )),
-					`HWeight(10,`TextEntry(`id( `sqwalltime ), _("&Walltime:"), queuesettings[1]:"error" ))
-					)
-				      ),
-				`VSpacing(1),
-				`Frame(_("&Parallel Queue"),
-				   `VBox(
-			//		`HSpacing(20),
-					`TextEntry(`id( `pqname ), _("Q&ueuename:"), queuesettings[2]:"error" ),
-					`TextEntry(`id( `pqwalltime ), _("Wall&time:"), queuesettings[3]:"error" ),
-					`TextEntry(`id( `pqnumber ), _("Number of &Nodes:"), queuesettings[4]:"error" )
-					)
-				      ),
-				`VSpacing(1),
+				`HSpacing(`opt(`hstretch),(50)),
+					`HBox(
+						`VBox(
+							HPCControl::queueTree(),
+							`VSpacing(1),
+							`TextEntry("Value:"),
+							`PushButton("Save")
+						     ),
+						`VBox(
+							`VSpacing(1),
+							`PushButton("Add"),
+							`PushButton("Delete")
+						     )
+					      ),
+				`VSpacing(3),
 				`PushButton(`id( `asettings ), _("Scheduler Configuration"))
 			     );
+*/
 	return this_tab;
 };
 
@@ -139,23 +111,32 @@ define term Nodes_Tab(list ndscontent)
 				`VSpacing(1),
 				`Frame(_("Nodes Configuration"),
 				   `VBox(
-					`HSpacing(70),
+					`HSpacing(80),
 					`HBox(
 						`VSpacing(`opt(`vstretch), 15),
-						`Table(`header (_("IP-Address"),_("Cluster-Node"), _("Name"), _("CPUs"), _("status")),
+						`Table(`id(`nodestable), `opt(`immediate, `notify), `header (_("IP-Address"),_("ClusterNode"), _("Name"), _("CPUs"), _("status"), _("SSH Access")),
 						ndscontent
 						      )
 					     ),
 					`VSpacing(`opt(`vstretch),2),
 					`HBox(
-						`PushButton(`id(`togglenodes), _("A&ssimilate Node")),
+						`VBox(
+						`PushButton(`id(`addnode), _("Add Node to cluster")),
+						`PushButton(`id(`remnode), _("Remove Node from cluster"))
+						),
 						`HSpacing(`opt(`hstretch), 0.5),
 						`ComboBox(`id(`CPUs), _("Choose &Nr of CPUs"),
-						[`item(`id(`one), _("1"), true ),
-                                                              `item(`id(`two), _("2"))
+						[	_("1"),
+                                                        _("2"),
+                                                        _("3"),
+                                                        _("4"),
+                                                        _("5"),
+                                                        _("6"),
+                                                        _("7"),
+                                                        _("8")
                                                 ]	 ),
 						`HSpacing(`opt(`hstretch), 0.5),
-						`PushButton(`id(`transmit), _("&Transmit"))
+						`PushButton(`id(`copyssh), _("Obtain SSH Access"))
 					     )
 					)
 				      )
@@ -163,60 +144,120 @@ define term Nodes_Tab(list ndscontent)
 	return this_tab;
 };
 
-// Services-Tab UI
-define term Services_Tab() ``{
-	term this_tab =	`VBox(
-				`VSpacing(1),
-				`Frame(_("NIS Configuration"),
-				  `VBox(`HSpacing(60),
-					`Left(`Label(_("Configure this machine as:"))),
-					`HBox(
-						`VSpacing(`opt(`vstretch), 1),
-						`PushButton(`id(`nissrv), "NIS-&Server"),
-						`HSpacing(10),
-						`PushButton(`id(`nisclnt), "&NIS-Client"),
-						`VSpacing(2)
-					      )
-					)
-				     ),
-				`VSpacing(1),
-				`Frame(_("NFS Configuration"),
-					`VBox(
-						`VSpacing(`opt(`vstretch), 1),
-						`Left(`Label(_("Share Directory where common data will be exported to other Nodes:"))),
-						`VSpacing(`opt(`vstretch), 1),
-						`HBox(
-						`TextEntry(`id(`mountpoint), _("Mountpoint")),
-						`HSpacing(5),
-						`TextEntry(`id(`hosts), _("Hosts"), "*"),
-						`HSpacing(5),
-						`TextEntry(`id(`options), _("Options"), "rw,root_squash,sync")
-						     ),
-						`VSpacing(`opt(`vstretch), 0.5)
-					)
-				     ),
-				`VSpacing(1),
-				`Frame(_("SSH Configuration"),
-					`VBox(
-						`VSpacing(`opt(`vstretch), 1),
-						`Left(`Label(HPCControl::SSHAvail("192.168.123.12"))),
-						`VSpacing(`opt(`vstretch), 1),
-						`Left(`Label(HPCControl::SSHAvail("192.168.123.13"))),
-						`VSpacing(`opt(`vstretch), 1)
-					)
-				     ),
-				`VSpacing(1),
-				`Frame(_("DHCP Configuration"),
-					`VBox(
-							`VSpacing(`opt(`vstretch), 1),
-							`PushButton(`id(`dhcpsrv), "DHCP-Server"),
-							`VSpacing(1)
-					)
-				     )
-			      );
-	return this_tab;
-		};
 
+//-----------------------------------------
+// NFS-Share dialog
+//-----------------------------------------
+define term CommonWiz(map nfs, term firewallsettings)
+``{
+	term this_tab =	`VBox(
+				`HBox(
+				`HVCenter(
+						`HVSquash(
+							//`VSpacing(`opt(`vstretch), 1),
+							`Frame(
+								(_("Share Directory Configuration:")),
+								`VBox(
+									`VSpacing(1),
+									`TextEntry(`id(`mountpoint), _("Mountpoint"), (string)nfs["mountpoint"]:"n.a."),
+									`VSpacing(0.5),
+									`TextEntry(`id(`hosts), _("Hosts"), (string)nfs["hosts"]:"n.a."),
+									`VSpacing(0.5),
+									`TextEntry(`id(`options), _("Options"), (string)nfs["options"]:"n.a."),
+									`VSpacing(0.5)
+									)
+								)
+							)
+					),
+				`HVCenter(
+						`HVSquash(
+							`Frame(
+								(_("Home Directory Configuration:")),
+								`VBox(
+									`VSpacing(1),
+									`TextEntry(`id(`homepoint), _("Mountpoint"), (string)nfs["homepoint"]:"n.a."),
+									`VSpacing(0.5),
+									`TextEntry(`id(`hhosts), _("Hosts"), (string)nfs["hhosts"]:"n.a."),
+									`VSpacing(0.5),
+									`TextEntry(`id(`hoptions), _("Options"), (string)nfs["hoptions"]:"n.a."),
+									`VSpacing(0.5)
+									)
+								)
+							)
+					)
+				    ),
+				`HVCenter(
+						`HVSquash(
+							`Frame(
+								(_("Firewall Configuration:")),
+								`VBox( firewallsettings
+									)
+								)
+							)
+					)
+			      );
+
+	term ret ={
+			Wizard::SetContents(
+	                _("(1) NFS Configuration"),
+	                this_tab,
+	                _("This Wizard-dialog will help you setup the Open PBS Scheduling System. First enter an existing directory where common hpc-relevant data will be stored and exported to the client nodes. Also enter the location of the $HOME-directory (which is normally /home) to ensure that clients can also mount it. Automounter Maps will only be considered if changes are made within this Module. "),
+	                false,
+	                true
+	                );
+			Wizard::SetNextButton(`nextnis, _("Next"));
+			Wizard::SetAbortButton(`abort, _("Abort"));
+		  };
+	return ret;
+};
+
+//-----------------------------------------
+// Pre SC
+//-----------------------------------------
+define term preSCTabs(term firewallsettings)
+``{
+	term this_wiz = `VBox(
+			   firewallsettings
+			      );
+
+	term ret = {
+			Wizard::SetContents(
+						_("(4) Prepare for PBS Configuration"),
+						this_wiz,
+						_("Help Bala Bla"),
+						true,
+						true
+					);
+			Wizard::SetNextButton(`configSC, _("Detect Nodes"));
+			Wizard::SetBackButton(`backdhcp, _("Back"));
+			Wizard::SetAbortButton(`abortSC, _("skip nodes detection"));
+			};
+
+
+	return ret;
+};
+
+
+
+//-----------------------------------------
+// Create Tabs
+//-----------------------------------------
+define term SCTabs(term setup_dialog)
+``{
+	term this_tab = {
+			 Wizard::SetContents(
+						_("PBS Server / Client configuration"),
+						setup_dialog,
+						_("Configuration of Server and Client Nodes here!"),
+						true,
+						true
+					    );
+			Wizard::SetAbortButton(`abort,_("Abort"));
+			Wizard::SetBackButton(`backSC, _("Back"));
+			Wizard::SetNextButton(`finalize, _("Finalize"));
+			};
+	return this_tab;
+};
 
 
 //-----------------------------------------
