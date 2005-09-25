@@ -8,9 +8,8 @@ client_DATA =       \
 	hpc.ycp         \
 	HPCMain.ycp
 
-EXTRA_DIST = $(client_DATA)
-EXTRA_DIST = $(module_DATA)
+EXTRA_DIST = $(client_DATA) $(module_DATA)
 
 include $(top_srcdir)/Makefile.am.common
 
-SUBDIRS = dialog
+SUBDIRS = dialog config

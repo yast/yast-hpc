@@ -1,6 +1,6 @@
 @HEADER-COMMENT@
 
-# neededforbuild  yast2-devel-packages yast2
+# neededforbuild  yast2-devel-packages yast2 gpp libgpp
 
 @HEADER@
 Requires:	yast2
@@ -16,10 +16,6 @@ Summary:	-
 
 @INSTALL@
 
-%ifarch s390 s390x
-rm -f $RPM_BUILD_ROOT@desktopdir@/hpc.desktop
-%endif
-
 @CLEAN@
 
 %files
@@ -28,9 +24,16 @@ rm -f $RPM_BUILD_ROOT@desktopdir@/hpc.desktop
 %dir @yncludedir@/hpc
 @yncludedir@/hpc/*
 @clientdir@/*.ycp
-%ifnarch s390 s390x
 @desktopdir@/*.desktop
-%endif
 @ybindir@/sched_config.sh
-@scrconfdir@/*.scr
+@ybindir@/nodes_ip.sh
+@ybindir@/nodes_hpc.sh
+@ybindir@/detect_queues.sh
+@ybindir@/mergemaps.sh
+@ybindir@/dhcpd.hpc.sh
+@ybindir@/ssh_hpc.sh
+@ybindir@/installhost.sh
+@ybindir@/DHCPToHosts.pl
+@ybindir@/Makefile.patch
+@ybindir@/nsswitch.patch
 %doc @docdir@
