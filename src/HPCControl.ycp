@@ -27,7 +27,9 @@ textdomain "hpc";
 import "Package";
 import "Service";
 import "Popup";
-
+import "Wizard";
+import "Progress";
+import "HPCMessages";
 
 //------------------------------------------
 // check required Packages and install...
@@ -35,7 +37,7 @@ import "Popup";
 global define any installPackages( list<string> requiredPacs )
 ``{
         return Package::InstallAllMsg (
-                requiredPacs, _("There are packages missing! \n Do you want to install these packages ?")
+                requiredPacs, HPCMessages::packagesmissing
         ) ? `auto : nil;
 };
 
@@ -49,7 +51,6 @@ global define boolean HPCServiceCheck( string service )
 ``{
 
         integer status = Service::Status ( service );
-y2milestone ("status is %1", status);
 	// return true if service is running
         if ( status == 0 )
         {
@@ -110,7 +111,6 @@ global define string HPCQueueConfig()
 		qconfig = (string)SCR::Read (.target.string, "/tmp/queue.conf");
 
 		SCR::Execute (.target.bash, "rm -rf /tmp/queue.conf");
-//		y2milestone ("... qconfig read and deleted ...");
 		}
 
 	else
@@ -154,13 +154,11 @@ global define void HPCwriteSchedConfig( string configtext )
 
 
 //-----------------------------------------------------------------
-// detect Queue Properties & Kind of Configure (Simple / Advanced)
+// detect Queue Properties
 //-----------------------------------------------------------------
-// TODO implementation
 
 global define term queueTree()
 {
-	y2milestone("-----------------------HALLO-------------------------");
 	string init = "/usr/lib/YaST2/bin/detect_queues.sh init";
 	SCR::Execute(.target.bash, init);
 	string qcommand = "/usr/lib/YaST2/bin/detect_queues.sh config";
@@ -201,20 +199,9 @@ global define term queueTree()
 
 	term tree = `Tree(`id(`queues),
 				`opt(`notify),
-					"Select Queue:",
+					_("Select Queue:"),
 				treeitems
 			 );
-/*
-	term tree = `Tree(`id(`queues),
-                                `opt(`notify),
-                                        "Edit Queue:",
-                                                [
-							`item(`id(`serial), "bla",[`item("walltime"),`item("nodect")]
-							),
-							`item(`id(`parallel), "parallel")
-                                                ]);
-
-*/
 	return tree;
 
 };
@@ -222,12 +209,13 @@ global define term queueTree()
 
 
 //-----------------------------------------
-// Query Tree
+// Query Queue Tree
 //-----------------------------------------
 
-global define void QueryTree(){
+global define string QueryTree(){
 
 	string CurrentTreeItem = (string)UI::QueryWidget(`id(`queues), `CurrentItem);
+	y2milestone("CurrentTreeItem: %1", CurrentTreeItem);
 	if (issubstring(CurrentTreeItem,"="))
 	{
 		integer CurrentValuePos = findfirstof(CurrentTreeItem, "=");
@@ -236,15 +224,111 @@ global define void QueryTree(){
 		y2milestone("Currently selected TreeItem is: %1", CurrentTreeItem);
 		y2milestone("Currently selected Value is: %1", CurrentValue);
 		UI::ChangeWidget(`id(`queuevalue), `Value, CurrentValue);
+		return CurrentValue;
 	}
 	else
 	{
 		UI::ChangeWidget(`id(`queuevalue), `Value, CurrentTreeItem);
+		return CurrentTreeItem;
 	}
 
 };
 
 
+//-----------------------------------------
+// Add Tree Item
+//-----------------------------------------
+
+global define void AddItem(string itemname){
+
+	string CurrentTreeItem = (string)UI::QueryWidget(`id(`queues), `CurrentItem);
+	if (issubstring(CurrentTreeItem, "="))
+	{
+	// is a queue Item
+	y2milestone("Add a QueueItem");
+
+
+	}
+	else
+	{
+	// is a whole queue
+	y2milestone("Add a whole Queue");
+
+	UI::OpenDialog(
+			`VBox(
+				`Label("Add new queue"),
+				`TextEntry(`id(`newqueuename), "Enter Queue Name:"),
+				`VSpacing(1),
+				`HBox(
+					`PushButton(`id(`AddQueueCancel),"cancel"),
+					`PushButton(`id(`AddQueueOK),"OK")
+				     )
+			     )
+		      );
+	any ret = UI::UserInput();
+	string newqueuename = (string)UI::QueryWidget(`id(`newqueuename), `Value);
+	UI::CloseDialog();
+		if ( ret == `AddQueueOK)
+		{
+		y2milestone("-------------YES, there is a new queue name: %1",newqueuename);
+		string addnewqueuecommand = "/opt/pbs/bin/qmgr -c \"create queue "+newqueuename+"\"";
+		string setnewqueueexec = "/opt/pbs/bin/qmgr -c \"set queue "+newqueuename+" queue_type=Execution\"";
+		string setnewqueuekdelay = "/opt/pbs/bin/qmgr -c \"set queue "+newqueuename+" kill_delay=20\"";
+		string setnewqueueenabled = "/opt/pbs/bin/qmgr -c \"set queue "+newqueuename+" enabled=true\"";
+		string setnewqueuestarted = "/opt/pbs/bin/qmgr -c \"set queue "+newqueuename+" started=true\"";
+		SCR::Execute(.target.bash, addnewqueuecommand);
+		SCR::Execute(.target.bash, setnewqueueexec);
+		SCR::Execute(.target.bash, setnewqueuekdelay);
+		SCR::Execute(.target.bash, setnewqueueenabled);
+		SCR::Execute(.target.bash, setnewqueuestarted);
+		term newtree = queueTree();
+		UI::ReplaceWidget(`id(`TreeDialog), newtree);
+		HPCServiceRestart("pbs_server");
+		}
+	}
+};
+
+//-----------------------------------------
+// Delete Tree Item
+//-----------------------------------------
+
+global define void DeleteItem(string itemname){
+
+        string CurrentTreeItem = (string)UI::QueryWidget(`id(`queues), `CurrentItem);
+        if (issubstring(CurrentTreeItem,"="))
+	{
+	// is a queue Item
+	y2milestone("Delete a Queue Item");
+	y2milestone("Wizard::QueryTreeItem: %1", Wizard::QueryTreeItem());
+	y2milestone("#######Itemname: %1",itemname);
+	y2milestone("#######DeleteCommand: %1",CurrentTreeItem);
+	y2milestone("OpenItems: %1", UI::QueryWidget(`id(`queues), `OpenItems ));
+	}
+	else
+	{
+		// is a queue
+		y2milestone("Delete a whole Queue");
+		// Warning before deletion
+		boolean deletequeue = Popup::ContinueCancel(HPCMessages::deletequeuequestion);
+		if (deletequeue == true)
+		{
+			map output = (map)SCR::Execute(.target.bash_output, "/opt/pbs/bin/qmgr -c \" delete queue "+itemname+"\"");
+			string errormessage = (string)output["stderr"]:"";
+			if ( errormessage == "" )
+			{
+				term newtree = queueTree();
+				UI::ReplaceWidget(`id(`TreeDialog), newtree);
+				HPCServiceRestart("pbs_server");
+			}
+			else
+			{	// Error Message if queue can't be deleted
+				Popup::AnyMessage("Error", (string)output["stderr"]:"An error occured");
+				y2milestone("+++++++Error-LOOP");
+			}
+		}
+	}
+
+};
 
 
 //-----------------------------------------
@@ -269,7 +353,7 @@ global define boolean have_changes_check()
 // get name from IP
 global define string name(any ip)
 {
-	string command = ("/usr/lib/YaST2/bin/nodes_ip.sh name "+(string)ip);
+	string command = ("/usr/lib/YaST2/bin/nodes.sh name "+(string)ip);
 	map output = (map) SCR::Execute(.target.bash_output, command);
 	string ret = deletechars( (string)output["stdout"]:"n.a.", "}\n" );
 	return ret;
@@ -278,7 +362,7 @@ global define string name(any ip)
 // determine if computer is member of cluster
 global define string clusternode(string resname)
 {
-	string command = ("/usr/lib/YaST2/bin/nodes_ip.sh clusternode "+resname);
+	string command = ("/usr/lib/YaST2/bin/nodes.sh clusternode "+resname);
 	map output = (map) SCR::Execute(.target.bash_output, command);
 	string ret = deletechars( (string)output["stdout"]:"n.a.", "\n" );
 	return ret;
@@ -287,7 +371,7 @@ global define string clusternode(string resname)
 // get number of cpus of node $
 global define string cpus(string resname)
 {
-	string command = "/usr/lib/YaST2/bin/nodes_ip.sh cpus "+resname;
+	string command = "/usr/lib/YaST2/bin/nodes.sh cpus "+resname;
 	map output = (map) SCR::Execute(.target.bash_output, command);
 	string ret = deletechars( (string)output["stdout"]:"n.a.", "\n" );
 	return ret;
@@ -297,7 +381,7 @@ global define string cpus(string resname)
 // get status of node
 global define string status(string resname)
 {
-	string command = "/usr/lib/YaST2/bin/nodes_ip.sh status "+resname;
+	string command = "/usr/lib/YaST2/bin/nodes.sh status "+resname;
 	map output = (map) SCR::Execute(.target.bash_output, command);
 	string ret = deletechars( (string)output["stdout"]:"not reachable", "\n" );
 	return ret;
@@ -311,7 +395,7 @@ global define string status(string resname)
 // get status of node
 global define string ipaddress(string resname)
 {
-	string command = "/usr/lib/YaST2/bin/nodes_hpc.sh ip "+resname;
+	string command = "/usr/lib/YaST2/bin/nodes.sh ip "+resname;
 	map output = (map) SCR::Execute(.target.bash_output, command);
 	string ret = deletechars(  (string)output["stdout"]:"n.a.", "\n" );
 	return ret;
@@ -334,41 +418,41 @@ global define string SSHAvail ( string ipaddr )
 	return ret;
 };
 
-// detect current table-item
+// detect currently selected table-item
 
 global define string tableItem(symbol column){
 	integer itemid = (integer)UI::QueryWidget(`id(`nodestable), `CurrentItem);
         string itemstring = tostring(UI::QueryWidget(`id(`nodestable), `Item(itemid)));
         list<string> itemlist = splitstring(itemstring, "\"");
 
-        y2milestone("ITEMSTRING: %1", itemstring);
+//        y2milestone("ITEMSTRING: %1", itemstring);
 	string ret = "";
 
         if (column == `ip)
 	{
 	ret = (string)select(itemlist,1,"error");
-        y2milestone("tableItem IP: %1", ret);
+//      y2milestone("tableItem IP: %1", ret);
 	}
 
         if (column == `cluster)
 	{
 	ret = (string)select(itemlist,3,"error");
-        y2milestone("tableItem IP: %1", ret);
+//        y2milestone("tableItem IP: %1", ret);
 	}
 
 	if (column == `node)
 	{
-	y2milestone("ITEMLIST: %1",itemlist);
+//	y2milestone("ITEMLIST: %1",itemlist);
 	ret = (string)select(itemlist,5,"error");
-	y2milestone("tableItem node: %1", ret);
+//	y2milestone("tableItem node: %1", ret);
 	}
 
 	if (column == `ssh)
 	{
 	ret = (string)select(itemlist,11,"error");
-        y2milestone("tableItem IP: %1", ret);
+//        y2milestone("tableItem IP: %1", ret);
 	}
-	y2milestone("tableItem Return value = %1", ret);
+//	y2milestone("tableItem Return value = %1", ret);
 	return ret;
 
 };
@@ -382,7 +466,6 @@ global define list SSHcopy () //( string ipaddr )
 	string ip = tableItem(`ip);
 //	y2milestone("IP by tableitem is: %1", ip);
 	string command = ("/usr/bin/ssh-copy-id -i /root/.ssh/id_rsa.pub root@"+node);
-	y2milestone("SSHCopyCommand is: %1", command);
 	SCR::Execute(.target.bash,command);
 	// Line in nodes-Tab should is redetected
 	integer currentitem = (integer)UI::QueryWidget(`id(`nodestable), `CurrentItem);
@@ -397,7 +480,7 @@ global define list SSHcopy () //( string ipaddr )
 global define list AddClusterNode(){
 	string node = tableItem(`node);
 	// popup-warning
-	boolean addcontinue = Popup::ContinueCancel (" This will enable ssh-Hostbased Authentication on the Client Node. Are you shure you want to continue ?");
+	boolean addcontinue = Popup::ContinueCancel (HPCMessages::sshsecuritywarning);
 	if (addcontinue == true)
 	{
 		// enable nis-hosts in /etc/nsswitch.conf
@@ -492,8 +575,8 @@ global define void Buttonstate(){
 
 global define list allIPs()
 {
-	string broadcast = "/usr/lib/YaST2/bin/nodes_ip.sh broadcast";
-	string nodecast = "/usr/lib/YaST2/bin/nodes_hpc.sh clusternodes";
+	string broadcast = "/usr/lib/YaST2/bin/nodes.sh broadcast";
+	string nodecast = "/usr/lib/YaST2/bin/nodes.sh getclusternodes";
 	map broadout = (map) SCR::Execute(.target.bash_output, broadcast);
 	map nodeout = (map) SCR::Execute(.target.bash_output, nodecast);
 
@@ -511,7 +594,7 @@ global define list allIPs()
 			}
 		});
 	list all = union(broadIPlist, nodeIPlist);
-	y2milestone("IPliste aus allIPs: %1", all);
+//	y2milestone("IPliste aus allIPs: %1", all);
 	return all;
 };
 
@@ -520,6 +603,33 @@ global define list allIPs()
 global define list nodes()
 {
 // TODO: in case of error: should return Label "No PBS detected" or something lk that
+
+//------------------------------------------
+// collect node information
+//------------------------------------------
+	string window_title = _("Collecting Nodes information");     // window title
+	string progress_title = _(" ");                        // progress title
+	integer length = 2;                              // length
+	list<string> stages = [
+	// progress stage, text in dialog (short) (infinitive)
+	_("Collect node information"),
+	];
+	list<string> titles = [
+	// progress step, text in dialog (short)
+        _("Collecting node information..."),
+        ];
+        string help = _("progress help text");
+	Progress::New(
+                                window_title,
+                                progress_title,
+                                length,
+                                stages,
+                                titles,
+                                help
+                );
+
+	Progress::NextStage();
+
 
         list iplist = allIPs();
 
@@ -544,6 +654,20 @@ global define list nodes()
         });
         y2milestone("table : %1", table);
 
+                 if (table == nil)
+                        {
+                        UI::OpenDialog(
+                                        `VBox(  `Label(HPCMessages::nohostsdetected),
+                                               `PushButton(_("&Abort Installation"))
+                                              )
+                                        );
+                        UI::UserInput();
+                        UI::CloseDialog();
+                        return nil;
+                        };
+                Progress::Finish();
+
+
         return table;
 //      return tableitems;
 
@@ -551,7 +675,7 @@ global define list nodes()
 
 
 //-----------------------------------------------------------------
-// collect information for Services Table
+// collect information for NFS/NIS-Maps - Services
 //-----------------------------------------------------------------
 
 // Propose NFS-Directory
@@ -589,7 +713,6 @@ global define void NFSmap( map nfs, map nfsnew )
 	SCR::Execute(.target.bash, ("mv /tmp/auto.hpc.tmp /etc/auto.hpc"));
 	string nmountpointdir = substring(nmountpoint,1); // remove "/" from nmountpoint
 	string mapcommand = "echo -e \042"+nmountpointdir+"\t-fstype=nfs,rw,rsize=8192,wsize=8192,hard,intr,nolock,nosuid\t\t $HOST:"+nmountpoint+"\042 >> /etc/auto.hpc";
-	y2milestone("%%%%%%%%%%%%%%%%%%%%5MAPCOMMAND %1:",mapcommand);
 	SCR::Execute(.target.bash, mapcommand);
 	}
 
@@ -608,6 +731,53 @@ global define void NFSmap( map nfs, map nfsnew )
 	}
 
 
+};
+
+
+// Query NFS-Settings & write config-file
+global define map QuerynWriteNFSsettings(map nfs){
+
+	// Query NFS settings
+	map nfsnew = $[
+                "mountpoint": (string)UI::QueryWidget(`id(`mountpoint), `Value),
+                "hosts": (string)UI::QueryWidget(`id(`hosts), `Value),
+                "options": (string)UI::QueryWidget(`id(`options), `Value),
+                "homepoint": (string)UI::QueryWidget(`id(`homepoint), `Value),
+                "hhosts": (string)UI::QueryWidget(`id(`hhosts), `Value),
+                "hoptions": (string)UI::QueryWidget(`id(`hoptions), `Value)
+                                ];
+	string window_title = _("Writing NFS Data");     // window title
+	                string progress_title = _(" ");                        // progress title
+	                integer length = 2;                              // length
+	                list<string> stages = [
+	                    // progress stage, text in dialog (short) (infinitive)
+	                    _("Write NFS Data"),
+	                    _("Restart NFS-Server"),
+	                 ];
+	                list<string> titles = [
+	                    // progress step, text in dialog (short)
+	                    _("Writing NFS Data ..."),
+	                    _("Restarting NFS-Server ..."),
+	                 ];
+	                string help = _("progress help text");
+	                Progress::New(
+	                                window_title,
+	                                progress_title,
+	                                length,
+	                                stages,
+	                                titles,
+	                                help
+	                );
+	                Progress::NextStage();
+			NFSmap(nfs,nfsnew);
+
+			 // NFS-SERVER RESTART
+
+	                HPCServiceRestart( "nfsserver" );
+
+	                Progress::Finish();
+
+		return nfsnew;
 };
 
 //-----------------------------------------------------------------

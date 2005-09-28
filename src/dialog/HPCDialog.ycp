@@ -43,41 +43,20 @@ define term Server_Tab()
 				`VSpacing(1),
 					`HBox(
 						`VBox(	`HSpacing(40),
-							HPCControl::queueTree()
+							`ReplacePoint(`id(`TreeDialog),HPCControl::queueTree())
 						     ),
 						`VBox(
 							`HBox(
 							`TextEntry(`id(`queuevalue),"Value:" ),
-							`PushButton(`id(`savequeue),"Save")),
+							`PushButton(`id(`savequeue),"save changes")),
 							`VSpacing(1),
-							`PushButton(`id(`addqueue),"Add"),
+							`PushButton(`id(`addqueue)," Add "),
 							`PushButton(`id(`deletequeue),"Delete")
 						     )
 					      ),
 				`VSpacing(1),
 				`PushButton(`id( `asettings ), _("edit scheduler config-file"))
 			     );
-/*	OLD TERM
-	term this_tab = `VBox(
-				`VSpacing(1),
-				`HSpacing(`opt(`hstretch),(50)),
-					`HBox(
-						`VBox(
-							HPCControl::queueTree(),
-							`VSpacing(1),
-							`TextEntry("Value:"),
-							`PushButton("Save")
-						     ),
-						`VBox(
-							`VSpacing(1),
-							`PushButton("Add"),
-							`PushButton("Delete")
-						     )
-					      ),
-				`VSpacing(3),
-				`PushButton(`id( `asettings ), _("Scheduler Configuration"))
-			     );
-*/
 	return this_tab;
 };
 
@@ -186,6 +165,7 @@ define term CommonWiz(map nfs, term firewallsettings)
 							)
 					)
 				    ),
+				`HBox(
 				`HVCenter(
 						`HVSquash(
 							`Frame(
@@ -194,14 +174,26 @@ define term CommonWiz(map nfs, term firewallsettings)
 									)
 								)
 							)
-					)
+					),
+				`HVCenter(
+						`HVSquash(
+							`Frame(
+								(_("Configuration Progress")),
+								`VBox(
+									`CheckBox(`id(`NISconfigured),_("NIS already configured"),true),
+									`CheckBox(`id(`DHCPconfigured),_("DHCP already configured"),true)
+									)
+							      )
+							 )
+					 )
+				 )
 			      );
 
 	term ret ={
 			Wizard::SetContents(
 	                _("(1) NFS Configuration"),
 	                this_tab,
-	                _("This Wizard-dialog will help you setup the Open PBS Scheduling System. First enter an existing directory where common hpc-relevant data will be stored and exported to the client nodes. Also enter the location of the $HOME-directory (which is normally /home) to ensure that clients can also mount it. Automounter Maps will only be considered if changes are made within this Module. "),
+			HPCMessages::helpTextNFS,
 	                false,
 	                true
 	                );

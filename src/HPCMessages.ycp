@@ -43,6 +43,70 @@ global string helpTextServicesconfig = _("
 Here you can configure the Services ..... bla bla bla... 
 ");
 
+global string helpTextNFS = _("
+<p><b> OpenPBS-Setup</b></p><br>
+This Wizard-dialog will help you setup the Open PBS Scheduling System.<br>
+Share-Directory-Configuration:<br>
+Enter an existing directory where common hpc-relevant data will be stored and exported to the client nodes.<br><br>
+Home-Directory-Configuration:<br>
+Enter the location of the $HOME-directory (which is normally /home) to ensure that clients can also mount it.<br><br>
+Automounter Maps of these Directories will only be considered if changes are made within this Module.<br><br>
+Firewall Configuration:<br>
+To provide OpenPBS-Service on this server, it is mandatory to open some Firewall Ports (NFS, NIS, DHCP, NTP, SSH, OpenPBS). By checking the Box under '<b>Firewall Configuration</b>' this will be done by YaST.
+");
+
+global string initProgresshelpText = _("
+<p> OpenPBS-Setup</p><br>
+The Open portable batch system is initializing necessary components.
+Please stand by till YaST has finished these steps.
+");
+
+//------------------------------------
+// Progress Text
+//------------------------------------
+
+
+
+
+
+
+
+
+
+
+//------------------------------------
+// other Text
+//------------------------------------
+
+global string errorinstallationabort = _("
+The Following Error caused the Installation to abort:
+");
+
+
+global string packagesmissing = _("
+There are packages missing! \n Do you want to install these packages ?
+");
+
+global string deletequeuequestion = _("
+Are you shure you want to delete the whole Queue?
+");
+
+global string sshsecuritywarning = _("
+This will enable ssh-Hostbased Authentication on the Client Node. Are you shure you want to continue ?
+");
+
+global string nohostsdetected = _("
+There were no Hosts to contact for the YaST-Module:
+");
+
+
+
+
+
+
+
+
+
 //-------------------------------------
 // help text for command line mode
 //-------------------------------------

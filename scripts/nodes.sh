@@ -102,3 +102,16 @@ if [ "$1" == "testssh" ]
 then
 	echo "ssh_works"
 fi
+
+# print all cluster-nodes
+if [ "$1" == "getclusternodes" ]
+then
+        /opt/pbs/bin/pbsnodes -a|cut -f1 -d" "|uniq -u
+fi
+
+# get ip-address from computer-name
+if [ "$1" == "ip" ]
+then
+        gethostip -d $2
+
+fi

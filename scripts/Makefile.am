@@ -3,9 +3,7 @@
 #
 
 ybin_SCRIPTS = \
-	sched_config.sh	\
-	nodes_ip.sh \
-	nodes_hpc.sh \
+	nodes.sh \
 	detect_queues.sh \
 	Makefile.patch \
 	mergemaps.sh \
