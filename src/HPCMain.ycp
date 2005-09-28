@@ -36,6 +36,8 @@ import "NfsServer";
 
 include "hpc/HPCDialog.ycp";
 
+
+// start Module as a Wizard
 Wizard::OpenNextBackDialog();
 
 
@@ -43,12 +45,6 @@ Wizard::OpenNextBackDialog();
 //initial settings
 //------------------------------------------
 
-
-
-
-list<string> requiredPacs = [
-                "OpenPBS", "OpenPBS-clients", "OpenPBS-server", "OpenPBS-scheduler", "OpenPBS-utils", "openssh", "nfs-utils", "ypbind", "ypserv", "yp-tools", "nmap", "dhcp-server", "pdsh"
-        ];
 
 
 
@@ -83,14 +79,13 @@ list<string> requiredPacs = [
             // progress step, text in dialog (short)
             _("Reading firewall settings..."),
          ];
-        string help = _("progress help text");
         Progress::New(
                         window_title,
                         progress_title,
                         length,
                         stages,
                         titles,
-                        help
+			HPCMessages::initProgresshelpText
         );
 
 
@@ -98,6 +93,12 @@ list<string> requiredPacs = [
 //------------------------------------------
 // check required Packages and install...
 //------------------------------------------
+// Module requirements
+
+list<string> requiredPacs = [
+                "OpenPBS", "OpenPBS-clients", "OpenPBS-server", "OpenPBS-scheduler", "OpenPBS-utils", "openssh", "nfs-utils", "ypbind", "ypserv", "yp-tools", "nmap", "dhcp-server"
+        ];
+
 Progress::NextStage();
 
 if ( HPCControl::installPackages( requiredPacs ) == nil)
@@ -128,12 +129,10 @@ boolean HPCServices = HPCControl::HPCServiceCheck( "pbs_server");
 	else
 	{
 	started = true;
-	y2milestone("------------pbs_server is running------------");
 	}
 
 	if (started == false)
 	{
-	y2milestone("------------pbs_server could not be started------------");
 	return `nil;
 	}
 
@@ -148,12 +147,10 @@ HPCServices = HPCControl::HPCServiceCheck( "pbs_sched");
 	else
 	{
 	started = true;
-	y2milestone("------------pbs_scheduler is running------------");
 	}
 
 	if (started == false)
 	{
-	y2milestone("------------pbs_scheduler could not be started------------");
 	return `nil;
 	}
 
@@ -165,17 +162,16 @@ HPCServices = HPCControl::HPCServiceCheck( "pbs_sched");
 //------------------------------------------
 Progress::NextStage();
 
-
 //if return value != 0 then UI::OpenDialog mit return value!
 
-// rückgabe-werte: error-msg, oder true
+// return-values: error-msg, or true
 
 if ( HPCControl::HPCQueueConfig() == nil )
         {
         map out = (map)SCR::Execute (.target.bash_output, "/opt/pbs/bin/qmgr -c \042 print server \042 > /tmp/queue.conf");
         string error = (string)out["stderr"]:nil;
         UI::OpenDialog(
-                        `VBox(  `Label(_("The Following Error caused the installation to abort:")),
+                        `VBox(  `Label(HPCMessages::errorinstallationabort),
                                 `Label(error),
                                 `PushButton(_("&Abort Installation"))
                              )
@@ -193,7 +189,7 @@ if ( HPCControl::HPCSchedConfig() == nil )
         map out = (map)SCR::Execute (.target.bash_output, "/opt/pbs/bin/qmgr -c \042 print server \042 > /tmp/queue.conf");
         string error = (string)out["stderr"]:nil;
         UI::OpenDialog(
-                        `VBox(  `Label(_("The Following Error caused the installation to abort:")),
+                        `VBox(  `Label(HPCMessages::errorinstallationabort),
                                 `Label(error),
                                 `PushButton(_("&Abort Installation"))
                              )
@@ -204,6 +200,8 @@ if ( HPCControl::HPCSchedConfig() == nil )
         UI::CloseDialog();
 	return `nil;
         };
+
+// create /etc/sysconfig/hpc.cfg for later check which directories exporting hpc-data
 
 if( SCR::Read(.target.string, "/etc/sysconfig/hpc.cfg") == nil)
 	{
@@ -223,23 +221,25 @@ if( SCR::Read(.target.string, "/etc/sysconfig/hpc.cfg") == nil)
 			"hoptions": deletechars((string)(((map)SCR::Execute(.target.bash_output,"grep -w HOMEPOINT /etc/sysconfig/hpc.cfg | cut -f4 -d\042:\042"))["stdout"]:"n.a."),"\n()"),
 		];
 
-y2milestone("############################NFSMAP %1:",nfs);
+	// insert automounter-option in yp-Makefile if automounter-maps are not included
 	if (SCR::Execute(.target.bash, "grep -e auto.hpc /var/yp/Makefile")!=0)
 	{
 	SCR::Execute(.target.bash, "patch -s /var/yp/Makefile /usr/lib/YaST2/bin/Makefile.patch");
 	}
 
+	// create auto.home map
 	if (SCR::Execute(.target.bash, "grep -e auto.home /etc/auto.master")!=0)
 	{
 	SCR::Execute(.target.bash, "echo -e \"/home \t\t auto.home\" >> /etc/auto.master");
 	}
 
+	// create auto.hpc map
 	if (SCR::Execute(.target.bash, "grep -e auto.hpc /etc/auto.master")!=0)
 	{
 	SCR::Execute(.target.bash, "echo -e \"/hpc \t\t auto.hpc\" >> /etc/auto.master");
 	}
 
-// dhcpd.conf
+	// create group "hpc" in dhcpd.conf
 
 	if (SCR::Execute(.target.bash, "grep -e HPC /etc/dhcpd.conf")!=0)
 	{
@@ -305,6 +305,8 @@ term setup_dialog = `VBox(
 //--------------------------------
 CommonWiz(nfs,firewallsettings);
 
+boolean NISconfigured = (boolean)UI::QueryWidget(`id(`NISconfigured), `Value);
+boolean DHCPconfigured = (boolean)UI::QueryWidget(`id(`DHCPconfigured), `Value);
 
 
 //--------------------------------
@@ -317,149 +319,52 @@ boolean abort = false;
 
 string sched_edit = nil;
 
+string itemname = nil;
+
 // dynamically create script to install new nodes
 string createinstallscript = "/usr/lib/YaST2/bin/installhost.sh";
 SCR::Execute(.target.bash, createinstallscript);
 
 define list ndscontent = [];
 
-// string sharedir = "/hpccommon";
 
 repeat {
 	ret = Wizard::UserInput();
 
+	NISconfigured = (boolean)UI::QueryWidget(`id(`NISconfigured), `Value);
+	DHCPconfigured = (boolean)UI::QueryWidget(`id(`DHCPconfigured), `Value);
+
 	if ( ret == `nextnis )
+	{
+	//TODO Move this stuff out here!
+
+		nfs=HPCControl::QuerynWriteNFSsettings(nfs);
+
+
+		// Skip NIS-Configuration if not necessary
+		if (NISconfigured != true)
 		{
-			//Query settings
-			map nfsnew = $[
-			"mountpoint": (string)UI::QueryWidget(`id(`mountpoint), `Value),
-			"hosts": (string)UI::QueryWidget(`id(`hosts), `Value),
-			"options": (string)UI::QueryWidget(`id(`options), `Value),
-			"homepoint": (string)UI::QueryWidget(`id(`homepoint), `Value),
-			"hhosts": (string)UI::QueryWidget(`id(`hhosts), `Value),
-			"hoptions": (string)UI::QueryWidget(`id(`hoptions), `Value)
-					];
-			string window_title = _("Writing NFS Data");     // window title
-		        string progress_title = _(" ");                        // progress title
-		        integer length = 2;                              // length
-		        list<string> stages = [
-		            // progress stage, text in dialog (short) (infinitive)
-		            _("Write NFS Data"),
-			    _("Restart NFS-Server"),
-		         ];
-		        list<string> titles = [
-		            // progress step, text in dialog (short)
-		            _("Writing NFS Data ..."),
-			    _("Restarting NFS-Server ..."),
-		         ];
-		        string help = _("progress help text");
-		        Progress::New(
-		                        window_title,
-		                        progress_title,
-		                        length,
-		                        stages,
-		                        titles,
-		                        help
-		        );
-
-
-			Progress::NextStage();
-
-			HPCControl::NFSmap(nfs, nfsnew);
-			nfs = nfsnew;
-
-			// NFS-SERVER RESTART
-
-			HPCControl::HPCServiceRestart( "nfsserver" );
-
-			Progress::Finish();
-
 			WFM::CallFunction("nis_server");
-
-			WFM::CallFunction("dhcp-server");
-
-			// parse dhcp-configured hosts to /etc/hosts
-			SCR::Execute(.target.bash, "/usr/lib/YaST2/bin/DHCPtoHosts.pl");
-			// rebuild nis-maps
-			SCR::Execute(.target.bash, "make -C /var/yp");
-			y2milestone("§§§§§§§§§§§§§§§§§§§§§§§§§ HIER §§§§§§§§§§§§§§§§§§§§§§§§§§§§");
-			{
-			//------------------------------------------
-			// collect node information
-			//------------------------------------------
-			string window_title = _("Collecting Nodes information");     // window title
-			string progress_title = _(" ");                        // progress title
-			integer length = 2;                              // length
-			list<string> stages = [
-			    // progress stage, text in dialog (short) (infinitive)
-			    _("Collect node information"),
-			 ];
-			list<string> titles = [
-			    // progress step, text in dialog (short)
-			    _("Collecting node information..."),
-			 ];
-			string help = _("progress help text");
-			Progress::New(
-					window_title,
-					progress_title,
-					length,
-					stages,
-					titles,
-					help
-			);
-
-			Progress::NextStage();
-
-			ndscontent = HPCControl::nodes();
-			y2milestone("++++++++++++++++Nodescontent: %1",ndscontent);
-			 if (ndscontent == nil)
-				{
-				UI::OpenDialog(
-						`VBox(  `Label(_("There were no Hosts to contact for the YaST-Module:")),
-						       `PushButton(_("&Abort Installation"))
-						      )
-						);
-				UI::UserInput();
-				y2milestone("-------- didn't find any hosts ----------");
-				UI::CloseDialog();
-				return `nil;
-				};
-			Progress::Finish();
-			SCTabs(setup_dialog);
-			}
 		}
 
-//	if ( ret == `backnfs )
-//	{
-//	CommonWiz(nfs,firewallsettings);
-//	}
+		// Skip DHCP- Configuration if not necessary
+		if (DHCPconfigured != true)
+		{
+			WFM::CallFunction("dhcp-server");
+		}
 
-//	if ( ret == `abortnis )
-//	{
-//	preDHCPconfig();
-//	}
+		// parse dhcp-configured hosts to /etc/hosts
+		SCR::Execute(.target.bash, "/usr/lib/YaST2/bin/DHCPToHosts.pl");
 
-//	if ( ret == `backnis )
-//	{
-//	preNISconfig();
-//	}
+		// rebuild nis-maps
+		SCR::Execute(.target.bash, "make -C /var/yp");
 
-//	if ( ret == `confignis )
-//	{
-//	WFM::CallFunction("nis_server");
-//	preDHCPconfig();
-//	}
+		ndscontent = HPCControl::nodes();
 
-//	if ( ret == `configdhcp )
-//	{
-//	WFM::CallFunction("dhcp-server");
-//	preSCTabs(firewallsettings);
-//	}
+		SCTabs(setup_dialog);
 
-//	if ( ret == `abortdhcp )
-//	{
-//	preSCTabs(firewallsettings);
-//	}
+	}
+
 
 	if ( ret == `backdhcp )
 	{
@@ -468,47 +373,9 @@ repeat {
 
 	if ( ret == `configSC )
 	{
-	//------------------------------------------
-	// collect node information
-	//------------------------------------------
-        string window_title = _("Collecting Nodes information");     // window title
-        string progress_title = _(" ");                        // progress title
-        integer length = 2;                              // length
-        list<string> stages = [
-            // progress stage, text in dialog (short) (infinitive)
-            _("Collect node information"),
-         ];
-        list<string> titles = [
-            // progress step, text in dialog (short)
-            _("Collecting node information..."),
-         ];
-        string help = _("progress help text");
-        Progress::New(
-                        window_title,
-                        progress_title,
-                        length,
-                        stages,
-                        titles,
-                        help
-        );
-
-	Progress::NextStage();
 
 	ndscontent = HPCControl::nodes();
-	y2milestone("++++++++++++++++Nodescontent: %1",ndscontent);
-	 if (ndscontent == nil)
-		{
-		UI::OpenDialog(
-	                        `VBox(  `Label(_("There were no Hosts to contact for the YaST-Module:")),
-	                               `PushButton(_("&Abort Installation"))
-	                              )
-				);
-		UI::UserInput();
-		y2milestone("-------- didn't find any hosts ----------");
-		UI::CloseDialog();
-		return `nil;
-		};
-	Progress::Finish();
+
 	SCTabs(setup_dialog);
 	}
 
@@ -537,7 +404,6 @@ repeat {
 	        {
 	                HPCControl::HPCwriteSchedConfig(sched_edit);
 	                UI::ChangeWidget(`saveconfig, `Enabled, false);
-	                y2milestone("-------------- saving scheduler config ---------------");
 	        }
 	}
 
@@ -569,7 +435,6 @@ repeat {
 	// Call Nodes-Tab
 	if	( ret == `nodes )
 	{
-		y2milestone("NDSCONTENT: %1", ndscontent);
 		current_tab = Nodes_Tab(ndscontent);
 		UI::ReplaceWidget(`tabContents, current_tab);
 		HPCControl::Buttonstate(); // en-/disable buttons
@@ -605,16 +470,29 @@ repeat {
 
 	if	( ret == `queues )
 	{
-		HPCControl::QueryTree();
+		itemname = HPCControl::QueryTree();
+	}
+
+	// Add Queue Item
+
+	if	( ret == `addqueue )
+	{
+		HPCControl::AddItem(itemname);
+		y2milestone("Add Event");
+	}
+
+	// Delete Queue Item
+
+	if	( ret == `deletequeue )
+	{
+		HPCControl::DeleteItem(itemname);
+		y2milestone("Delete Event");
 	}
 
 	// Debugging stuff
 
-//	y2milestone ("... choice is %1 ...", choice);
-
 	y2milestone ("... ret is %1 ...", ret);
 
-	y2milestone ("..................UI-Loop passed ...................");
 
     } until ( false);
 
