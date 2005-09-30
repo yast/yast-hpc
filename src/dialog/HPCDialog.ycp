@@ -42,14 +42,15 @@ define term Server_Tab()
 	term this_tab = `VBox(	`HSpacing(60),
 				`VSpacing(1),
 					`HBox(
-						`VBox(	`HSpacing(40),
+						`VSpacing(25),
+						`VBox(	`HSpacing(50),
 							`ReplacePoint(`id(`TreeDialog),HPCControl::queueTree())
 						     ),
 						`VBox(
 							`HBox(
 							`TextEntry(`id(`queuevalue),"Value:" ),
 							`PushButton(`id(`savequeue),"save changes")),
-							`VSpacing(1),
+							`VSpacing(2),
 							`PushButton(`id(`addqueue)," Add "),
 							`PushButton(`id(`deletequeue),"Delete")
 						     )

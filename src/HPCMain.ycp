@@ -489,6 +489,14 @@ repeat {
 		y2milestone("Delete Event");
 	}
 
+	// Append Queue Item
+
+	if	( ret == `savequeue )
+	{
+		HPCControl::AppendItem(itemname);
+		y2milestone("Append Item");
+	}
+
 	// Debugging stuff
 
 	y2milestone ("... ret is %1 ...", ret);
