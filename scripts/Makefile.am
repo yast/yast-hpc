@@ -11,5 +11,6 @@ ybin_SCRIPTS = \
 	ssh_hpc.sh \
 	installhost.sh \
 	nsswitch.patch \
-	DHCPToHosts.pl
+	DHCPToHosts.pl \
+	sample_hpc.cfg
 EXTRA_DIST = $(ybin_SCRIPTS)
