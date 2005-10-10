@@ -107,16 +107,38 @@ global define string HPCQueueConfig()
 	string qconfig = nil;
 
 	if (SCR::Execute (.target.bash, "/opt/pbs/bin/qmgr -c \042 print server \042 > /tmp/queue.conf") == 0)
-		{
+		{// Read config and remove temporary created file
 		qconfig = (string)SCR::Read (.target.string, "/tmp/queue.conf");
-
 		SCR::Execute (.target.bash, "rm -rf /tmp/queue.conf");
-		}
-
-	else
-		{
-		// qconfig = nil;
-
+		// If config does NOT contain queues make suggestion to create default queues
+                if (issubstring(qconfig,"create queue")==false)
+			{
+			// Ask if default config should be written to qmgr
+			UI::OpenDialog(
+					`VBox(
+					`Label(_("YaST Cluster Module did not find a Job-Queue on PBS_Server. Maybe this Module was started for the first time?")),
+					`Label(_("Do you want YaST to create a default Queue Configuration?")),
+						`VSpacing(1),
+						`HBox(
+						`PushButton(`id(`CreateQueueNo),"No"),
+						`PushButton(`id(`CreateQueueOK),"Yes")
+						     )
+					     )
+				       );
+				any ret = UI::UserInput();
+				UI::CloseDialog();
+				y2milestone("RET =====: %1", ret);
+				if (ret == `CreateQueueOK)
+				{
+				y2milestone("inner CreateQueueOK");
+				// feed default config to qmgr
+				SCR::Execute(.target.bash,"/opt/pbs/bin/qmgr < /usr/lib/YaST2/bin/sample_hpc.cfg");
+				}
+				// Read new config
+				SCR::Execute (.target.bash, "/opt/pbs/bin/qmgr -c \042 print server \042 > /tmp/queue.conf");
+				qconfig = (string)SCR::Read (.target.string, "/tmp/queue.conf");
+				SCR::Execute (.target.bash, "rm -rf /tmp/queue.conf");
+			}
 		}
 
 	return qconfig;
@@ -162,9 +184,11 @@ global define term queueTree()
 	map OpenItemsMap = nil;
 	list<string> OpenItems = nil;
 	// Create a List of opened Items
-        OpenItemsMap = (map)UI::QueryWidget(`id(`queues), `OpenItems);
-        OpenItems = (list<string>)maplist(`k,`v, OpenItemsMap, {return k;});
-
+	if (((map)UI::QueryWidget(`id(`queues), `OpenItems))!=nil)
+        {
+		OpenItemsMap = (map)UI::QueryWidget(`id(`queues), `OpenItems);
+		OpenItems = (list<string>)maplist(`k,`v, OpenItemsMap, {return k;});
+	}
 
 	string init = "/usr/lib/YaST2/bin/detect_queues.sh init";
 	SCR::Execute(.target.bash, init);
@@ -293,6 +317,7 @@ global define void AppendItem(string itemname){
 			RefreshTree();
 		        term newtree = queueTree();
 		        UI::ReplaceWidget(`id(`TreeDialog), newtree);
+			UI::ChangeWidget(`id(`queuevalue), `Value, "");
 		        HPCServiceRestart("pbs_server");
 			}
 			else
@@ -309,7 +334,13 @@ global define void AppendItem(string itemname){
 
 global define void AddItem(string itemname){
 
-	string CurrentTreeItem = (string)UI::QueryWidget(`id(`queues), `CurrentItem);
+	string CurrentTreeItem = "";
+	// exclude that CurrentItem becomes nil!
+	if ((string)UI::QueryWidget(`id(`queues), `CurrentItem)!= nil)
+	{
+	CurrentTreeItem = (string)UI::QueryWidget(`id(`queues), `CurrentItem);
+	}
+
 	if (issubstring(CurrentTreeItem, "="))
 	{
 	// is a queue Item
