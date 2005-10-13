@@ -622,6 +622,11 @@ global define list SSHcopy () //( string ipaddr )
 
 global define list AddClusterNode(){
 	string node = tableItem(`node);
+	string ip = tableItem(`ip);
+	// Query share Directory
+	string sharecmd = "grep SHAREPOINT /etc/sysconfig/hpc.cfg|cut -f2 -d\":\"";
+	map sharemap = (map)SCR::Execute(.target.bash_output, sharecmd);
+	string sharepoint = deletechars( (string)sharemap["stdout"]:"", "\n");
 	// popup-warning
 	boolean addcontinue = Popup::ContinueCancel (HPCMessages::sshsecuritywarning);
 	if (addcontinue == true)
@@ -634,10 +639,23 @@ global define list AddClusterNode(){
 		SCR::Execute(.target.bash, scpnsswitch);
 		SCR::Execute(.target.bash, patchnsswitch);
 		SCR::Execute(.target.bash, nscdrestart);
-		// copy installscript to location where root can execut it (nfs is mounted root_squash !)
+		//  Add node to shosts.equiv
+		string shostsnode = "echo \""+node+"\" >> "+sharepoint+"/shosts.equiv";
+		string shostsip = "echo \""+ip+"\" >> "+sharepoint+"/shosts.equiv";
+		SCR::Execute(.target.bash, shostsnode);
+		SCR::Execute(.target.bash, shostsip);
+		// Add node to ssh_known_hosts
+		string known_hosts = "/usr/bin/ssh-keyscan -t dsa,rsa "+node+","+ip+" >> "+sharepoint+"/ssh_known_hosts";
+		SCR::Execute(.target.bash, known_hosts);
+		// reload ssh -config on every single node
+		string sshreload = "pdsh -R ssh -w $( cat /var/spool/pbs/server_priv/nodes|cut -f1|tr -t \"\\n\" \",\" ) /etc/init.d/sshd reload";
+		SCR::Execute(.target.bash, sshreload);
+		// reload ssh on server
+		SCR::Execute(.target.bash, "/etc/init.d/sshd reload");
+		// copy installscript to location where root can execute it (nfs is mounted root_squash !)
 		string installcopycommand = "/usr/bin/ssh root@"+node+" cp /hpc$( grep SHAREPOINT /etc/sysconfig/hpc.cfg|cut -f2 -d\":\" )/install.sh /tmp/ ";
 		// execute install script
-		string installcommand = "/usr/bin/ssh root@"+node+" /tmp/install.sh";
+		string installcommand = "/usr/bin/ssh -t root@"+node+" /tmp/install.sh";
 		SCR::Execute(.target.bash, installcopycommand);
 		SCR::Execute(.target.bash, installcommand);
 		string numofcpus = tostring(UI::QueryWidget(`id(`CPUs), `Value));
@@ -646,7 +664,12 @@ global define list AddClusterNode(){
 		y2milestone("Command for pasting into nodes-file: %1",addnodecommand);
 		SCR::Execute(.target.bash,addnodecommand);
 		// Restart PBS-Service
-		HPCServiceRestart("pbs_server");
+		boolean restartpbs = Popup::ContinueCancel(HPCMessages::pbsrestartwarning);
+		if (restartpbs == true)
+		{
+			// This would delete all jobs in the queue
+			 HPCServiceRestart("pbs_server");
+		}
 	}
 	// Line in nodes-Tab should be redetected
 	integer currentitem = (integer)UI::QueryWidget(`id(`nodestable), `CurrentItem);
@@ -664,12 +687,42 @@ global define list AddClusterNode(){
 
 global define list RemoveClusterNode(){
 	string node = tableItem(`node);
+	string ip = tableItem(`ip);
 	string command = "/usr/bin/ssh -l root "+node+" rpm -e OpenPBS OpenPBS-mom ";
-	SCR::Execute(.target.bash,command);
+	SCR::Execute(.target.bash, command);
 	string removecommand = "sed '/"+node+"/d' /var/spool/pbs/server_priv/nodes > /tmp/nodes.tmp";
 	SCR::Execute(.target.bash, removecommand);
 	SCR::Execute(.target.bash, "mv /tmp/nodes.tmp /var/spool/pbs/server_priv/nodes");
-        HPCServiceRestart("pbs_server");
+	// Query share Directory
+	string sharecmd = "grep SHAREPOINT /etc/sysconfig/hpc.cfg|cut -f2 -d\":\"";
+	map sharemap = (map)SCR::Execute(.target.bash_output, sharecmd);
+	string sharepoint = deletechars( (string)sharemap["stdout"]:"", "\n");
+	// remove Nodes from Hostbased config (shosts.equiv)
+	string shostsnode = "sed '/"+node+"/d' "+sharepoint+"/shosts.equiv > /tmp/shosts.tmp";
+	string shostsip = "sed '/"+ip+"/d' "+sharepoint+"/shosts.equiv > /tmp/shosts.tmp";
+	string moveshosts = "mv /tmp/shosts.tmp "+sharepoint+"/shosts.equiv";
+	SCR::Execute(.target.bash, shostsnode);
+	SCR::Execute(.target.bash, moveshosts);
+	SCR::Execute(.target.bash, shostsip);
+	SCR::Execute(.target.bash, moveshosts);
+	// remove Nodes from Hostbased config (ssh_known_hosts)
+	string knownhosts = "sed '/"+node+"/d' "+sharepoint+"/ssh_known_hosts > /tmp/ssh_known_hosts.tmp";
+	string moveknownhosts = "mv /tmp/ssh_known_hosts.tmp "+sharepoint+"/ssh_known_hosts";
+	SCR::Execute(.target.bash, knownhosts);
+	SCR::Execute(.target.bash, moveknownhosts);
+	// reload ssh -config on every single node
+	string sshreload = "pdsh -R ssh -w $( cat /var/spool/pbs/server_priv/nodes|cut -f1|tr -t \"\\n\" \",\" ) /etc/init.d/sshd reload";
+	SCR::Execute(.target.bash, sshreload);
+	// reload ssh on server
+	SCR::Execute(.target.bash, "/etc/init.d/sshd reload");
+        // This would delete all jobs in the queue
+	// HPCServiceRestart("pbs_server");
+	boolean restartpbs = Popup::ContinueCancel(HPCMessages::pbsrestartwarning);
+        if (restartpbs == true)
+        {
+                // This would delete all jobs in the queue
+                HPCServiceRestart("pbs_server");
+        }
 
 	// Line in nodes-Tab should be redetected
 	integer currentitem = (integer)UI::QueryWidget(`id(`nodestable), `CurrentItem);

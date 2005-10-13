@@ -54,5 +54,6 @@ echo "echo \"\\\$clienthost $HOSTNAME\" >> /var/spool/pbs/mom_priv/config" >> $m
 echo "echo \"\\\$usecp $HOSTNAME:$homedirs $homedirs\" >> /var/spool/pbs/mom_priv/config" >> $mountpoint/install.sh
 echo "echo \"\\\$prologalarm 110\" >> /var/spool/pbs/mom_priv/config" >> $mountpoint/install.sh
 
-echo "rcpbs_mom start" >> $mountpoint/install.sh
+echo "/etc/init.d/pbs_mom start" >> $mountpoint/install.sh
+echo "sleep 3" >> $mountpoint/install.sh
 chmod u+x $mountpoint/install.sh

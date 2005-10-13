@@ -73,12 +73,12 @@ define term Advanced_Tab()
 					//MultiLineEdit: ID, Label, initial Value
 				   `MultiLineEdit(`id(`ExpertsConfiguration),`opt(`notify), "&Edit scheduler Configuration:", HPCControl::HPCSchedConfig()
 						 )
-				     ),
-				   `VSpacing(`opt(`vstretch), 1),
-				   `HBox(
-					`PushButton(`id( `ssettings ), _("&Back")),
-					`PushButton(`id( `saveconfig ),`opt(`disabled), _("&Save"))
-					)
+				     )//,
+//				   `VSpacing(`opt(`vstretch), 1),
+//				   `HBox(
+//					`PushButton(`id( `ssettings ), _("&Back")),
+//					`PushButton(`id( `saveconfig ),`opt(`disabled), _("&Save"))
+//					)
 				);
 	return this_tab;
 };
@@ -192,7 +192,7 @@ define term CommonWiz(map nfs, term firewallsettings)
 
 	term ret ={
 			Wizard::SetContents(
-	                _("(1) NFS Configuration"),
+	                _("NFS Configuration"),
 	                this_tab,
 			HPCMessages::helpTextNFS,
 	                false,
@@ -207,23 +207,25 @@ define term CommonWiz(map nfs, term firewallsettings)
 //-----------------------------------------
 // Pre SC
 //-----------------------------------------
-define term preSCTabs(term firewallsettings)
+define term preSCTabs()
 ``{
 	term this_wiz = `VBox(
-			   firewallsettings
+			  `Label(_("NIS- and DHCP-Setup have been finished.")),
+			  `Label(_("You can start your Cluster-Nodes now in order to get a valid IP-Adress assigned by dhcp-server."))
 			      );
 
 	term ret = {
 			Wizard::SetContents(
-						_("(4) Prepare for PBS Configuration"),
+						_("Prepare for PBS Configuration"),
 						this_wiz,
-						_("Help Bala Bla"),
+						//_("Help Bala Bla"),
+						HPCMessages::helpTextbeforeScan,
 						true,
 						true
 					);
 			Wizard::SetNextButton(`configSC, _("Detect Nodes"));
-			Wizard::SetBackButton(`backdhcp, _("Back"));
-			Wizard::SetAbortButton(`abortSC, _("skip nodes detection"));
+			Wizard::SetBackButton(`backtonfs, _("Back"));
+			Wizard::SetAbortButton(`abort, _("Abort"));
 			};
 
 
@@ -241,7 +243,8 @@ define term SCTabs(term setup_dialog)
 			 Wizard::SetContents(
 						_("PBS Server / Client configuration"),
 						setup_dialog,
-						_("Configuration of Server and Client Nodes here!"),
+						//_("Configuration of Server and Client Nodes here!"),
+						HPCMessages::helpTextServerconfig,
 						true,
 						true
 					    );

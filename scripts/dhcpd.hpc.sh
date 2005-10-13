@@ -20,7 +20,7 @@ network=$N1.$N2.$N3.$N4
 echo $network
 
 hostip=$( gethostip -d $HOST )
-nisdomain=$( ypdomainname ) 
+nisdomain=$( cat /etc/defaultdomain ) 
 
 if [ "$( md5sum /etc/dhcpd.conf|cut -f1 -d" " )" == "08fa78baf27131e8952e90b5ffe3e92b" ]
 then
