@@ -96,7 +96,7 @@ Wizard::OpenNextBackDialog();
 // Module requirements
 
 list<string> requiredPacs = [
-                "OpenPBS", "OpenPBS-clients", "OpenPBS-server", "OpenPBS-scheduler", "OpenPBS-utils", "openssh", "nfs-utils", "ypbind", "ypserv", "yp-tools", "nmap", "dhcp-server"
+                "OpenPBS", "OpenPBS-clients", "OpenPBS-server", "OpenPBS-scheduler", "OpenPBS-utils", "openssh", "nfs-utils", "ypbind", "ypserv", "yp-tools", "nmap", "dhcp-server", "yast2-dhcp-server", "pdsh"
         ];
 
 Progress::NextStage();
@@ -336,10 +336,7 @@ repeat {
 
 	if ( ret == `nextnis )
 	{
-	//TODO Move this stuff out here!
-
 		nfs=HPCControl::QuerynWriteNFSsettings(nfs);
-
 
 		// Skip NIS-Configuration if not necessary
 		if (NISconfigured != true)
@@ -359,14 +356,14 @@ repeat {
 		// rebuild nis-maps
 		SCR::Execute(.target.bash, "make -C /var/yp");
 
-		ndscontent = HPCControl::nodes();
+		// Wait for nodes to boot
 
-		SCTabs(setup_dialog);
+		preSCTabs();
 
 	}
 
 
-	if ( ret == `backdhcp )
+	if ( ret == `backtonfs )
 	{
 	CommonWiz(nfs,firewallsettings);
 	}
@@ -381,7 +378,7 @@ repeat {
 
 	if ( ret == `backSC )
 	{
-	preSCTabs(firewallsettings);
+	preSCTabs();
 	}
 
 	if ( ret == `abortSC )
@@ -420,6 +417,7 @@ repeat {
 		current_tab = Server_Tab();
 		UI::ReplaceWidget(`tabContents, current_tab);
 		Wizard::SetHelpText( HPCServerSetupDialogHelpText() );
+		Wizard::SetBackButton(`backtonfs, _("Back"));
 	}
 
 
@@ -429,6 +427,7 @@ repeat {
 		current_tab = Advanced_Tab();
 		UI::ReplaceWidget(`tabContents, current_tab);
 		Wizard::SetHelpText( HPCAdvancedSetupDialogHelpText() );
+		Wizard::SetBackButton(`server, _("Back"));
 	}
 
 
@@ -439,24 +438,28 @@ repeat {
 		UI::ReplaceWidget(`tabContents, current_tab);
 		HPCControl::Buttonstate(); // en-/disable buttons
 		Wizard::SetHelpText( HPCNodesSetupDialogHelpText() );
+		Wizard::SetBackButton(`backtonfs, _("Back"));
 	}
 
 	// install ssh on node
 	if	( ret == `copyssh )
 	{
 		ndscontent = HPCControl::SSHcopy();
+		HPCControl::Buttonstate();
 	}
 
 	// Add node to cluster
 	if	( ret == `addnode )
 	{
 		ndscontent = HPCControl::AddClusterNode();
+		HPCControl::Buttonstate();
 	}
 
 	// Remove node from cluster
 	if	( ret == `remnode )
 	{
 		ndscontent = HPCControl::RemoveClusterNode();
+		HPCControl::Buttonstate();
 	}
 
 	// Inactivate / Activate Buttons in nodes-tab

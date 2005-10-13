@@ -27,8 +27,20 @@ textdomain "hpc";
 //-------------------------------------
 // help text on the left side
 //-------------------------------------
+global string helpTextbeforeScan = _("
+By pressing the \"Detect Nodes\"-Button YaST will query the network for available Compute Nodes. If your local network is bigger than Class C, this might take quite a while.<br>
+\"Back\" will guide you to the Beginning of this Module.
+");
+
 global string helpTextServerconfig = _("
-<p>PBS-Queue Setup</p>Here you can configure the Queues ..... bla bla bla... 
+<p><b>PBS-Setup</b></p>
+In this section you can configure the PBS-Server and PBS-Scheduler issues.<br>
+<p><b>PBS-Server</b></p>
+To change a value of a PBS-Queue, click on the desired Queue-Item to open the Property-List. Then click on the Property you want to change and adjust it in the \"Value\"-Window. Don't forget to save changed values.<br>
+To add/delete a queue, click on an existing queue and press the \"Add\"/\"Delete\"-Button. A Popup-Window will appear where you can enter a new queue name or confirm queue-deletion.<br>
+To add/delete queue features, click on a queue feature of an existing queue and press the \"Add\"/\"Delete\"-Button. A Popup-Window will ask you for feature-values.<br>
+<p><b>PBS-Scheduler</b></p>
+The Scheduler config should work as is. However, if you need to change it, open the Scheduler-Config-Editor to change Values. This is just recommended for advanced Users. 
 ");
 
 global string helpTextAdvancedconfig = _("
@@ -36,7 +48,10 @@ Here you can configure the Queues ..... bla bla bla...
 ");
 
 global string helpTextNodesconfig = _("
-Here you can configure the Nodes ..... bla bla bla... 
+<p><b>Nodes-Setup</b></p>
+This section allows you to manage your Cluster Nodes. Before you can add a Node to your Cluster, you have to hand over Client-root-ssh-access to this module. From now on YaST-Cluster Module can install and configure all needed things on the Client.<br>
+To add a Compute Node to the Cluster, select the appropriate Number of CPUs using the Combo-Box and press the \"Add Node to Cluster\"-Button. Be aware that this will also install ssh-hostbased authentication on this client node.<br>
+To delete a Compute node just press the associated Button and follow the dialog. 
 ");
 
 global string helpTextServicesconfig = _("
@@ -97,6 +112,10 @@ This will enable ssh-Hostbased Authentication on the Client Node. Are you shure 
 
 global string nohostsdetected = _("
 There were no Hosts to contact for the YaST-Module:
+");
+
+global string pbsrestartwarning= _("
+To add or remove a Clusternode, a pbs_server restart is necessary. \nRestart of pbs_server could also affect a loss of all jobs currently queued.\nAre you shure you want to continue and possibly loose queued Jobs? (You can also restart the pbs_server later!)
 ");
 
 
