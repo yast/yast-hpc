@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Fri Oct 14 13:18:22 CEST 2005 - thofmann@suse.de
+
+- first complete version of YaST-Cluster-Module
+
+-------------------------------------------------------------------
 Sun Sep 25 14:35:45 CEST 2005 - ms@suse.de
 
 - first version of hpc module for YaST, based on OpenPBS
