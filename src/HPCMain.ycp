@@ -305,8 +305,8 @@ term setup_dialog = `VBox(
 //--------------------------------
 CommonWiz(nfs,firewallsettings);
 
-boolean NISconfigured = (boolean)UI::QueryWidget(`id(`NISconfigured), `Value);
-boolean DHCPconfigured = (boolean)UI::QueryWidget(`id(`DHCPconfigured), `Value);
+boolean NISconfigured = false;//(boolean)UI::QueryWidget(`id(`NISconfigured), `Value);
+boolean DHCPconfigured = false;// (boolean)UI::QueryWidget(`id(`DHCPconfigured), `Value);
 
 
 //--------------------------------
@@ -331,11 +331,11 @@ define list ndscontent = [];
 repeat {
 	ret = Wizard::UserInput();
 
-	NISconfigured = (boolean)UI::QueryWidget(`id(`NISconfigured), `Value);
-	DHCPconfigured = (boolean)UI::QueryWidget(`id(`DHCPconfigured), `Value);
-
 	if ( ret == `nextnis )
 	{
+		NISconfigured = (boolean)UI::QueryWidget(`id(`NISconfigured), `Value);
+		DHCPconfigured = (boolean)UI::QueryWidget(`id(`DHCPconfigured), `Value);
+
 		nfs=HPCControl::QuerynWriteNFSsettings(nfs);
 
 		// Skip NIS-Configuration if not necessary
