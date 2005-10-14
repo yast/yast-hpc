@@ -25,9 +25,7 @@ Summary:	-
 @yncludedir@/hpc/*
 @clientdir@/*.ycp
 @desktopdir@/*.desktop
-@ybindir@/sched_config.sh
-@ybindir@/nodes_ip.sh
-@ybindir@/nodes_hpc.sh
+@ybindir@/nodes.sh
 @ybindir@/detect_queues.sh
 @ybindir@/mergemaps.sh
 @ybindir@/dhcpd.hpc.sh
@@ -36,4 +34,5 @@ Summary:	-
 @ybindir@/DHCPToHosts.pl
 @ybindir@/Makefile.patch
 @ybindir@/nsswitch.patch
+@ybindir@/sample_hpc.cfg
 %doc @docdir@
