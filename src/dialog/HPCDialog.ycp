@@ -181,8 +181,8 @@ define term CommonWiz(map nfs, term firewallsettings)
 							`Frame(
 								(_("Configuration Progress")),
 								`VBox(
-									`CheckBox(`id(`NISconfigured),_("NIS already configured"),true),
-									`CheckBox(`id(`DHCPconfigured),_("DHCP already configured"),true)
+									`CheckBox(`id(`NISconfigured),_("NIS already configured"),false),
+									`CheckBox(`id(`DHCPconfigured),_("DHCP already configured"),false)
 									)
 							      )
 							 )

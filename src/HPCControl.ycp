@@ -814,14 +814,14 @@ global define list nodes()
 	// progress step, text in dialog (short)
         _("Collecting node information..."),
         ];
-        string help = _("progress help text");
+        // string help = _("progress help text");
 	Progress::New(
                                 window_title,
                                 progress_title,
                                 length,
                                 stages,
                                 titles,
-                                help
+                                HPCMessages::scanProgresshelpText
                 );
 
 	Progress::NextStage();
@@ -955,14 +955,14 @@ global define map QuerynWriteNFSsettings(map nfs){
 	                    _("Writing NFS Data ..."),
 	                    _("Restarting NFS-Server ..."),
 	                 ];
-	                string help = _("progress help text");
+	                // string help = _("progress help text");
 	                Progress::New(
 	                                window_title,
 	                                progress_title,
 	                                length,
 	                                stages,
 	                                titles,
-	                                help
+	                                HPCMessages::nfsProgresshelpText 
 	                );
 	                Progress::NextStage();
 			NFSmap(nfs,nfsnew);

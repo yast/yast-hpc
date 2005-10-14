@@ -71,7 +71,7 @@ To provide OpenPBS-Service on this server, it is mandatory to open some Firewall
 ");
 
 global string initProgresshelpText = _("
-<p> OpenPBS-Setup</p><br>
+<p><b>OpenPBS-Setup</b></p><br>
 The Open portable batch system is initializing necessary components.
 Please stand by till YaST has finished these steps.
 ");
@@ -80,8 +80,14 @@ Please stand by till YaST has finished these steps.
 // Progress Text
 //------------------------------------
 
+global string nfsProgresshelpText = _("
+This will create NIS-Automounter maps and NFS-Configuration. 
+Please wait until YaST has written your configuration to disk. 
+");
 
-
+global string scanProgresshelpText = _("
+YaST is scanning your Network environment for possible Compute Nodes. This may, depending on your Network size, take a while. Please wait til YaST has finished the Network scan.
+");
 
 
 
