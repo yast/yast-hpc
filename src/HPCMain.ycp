@@ -116,7 +116,7 @@ Progress::NextStage();
 
 // check pbs_server
 
-SCR::Execute(.target.bash, "echo $HOST > /var/spool/pbs/default_server");
+SCR::Execute(.target.bash, "echo $HOSTNAME > /var/spool/pbs/default_server");
 
 boolean started = false;
 boolean HPCServices = HPCControl::HPCServiceCheck( "pbs_server");
@@ -309,9 +309,16 @@ boolean NISconfigured = false;//(boolean)UI::QueryWidget(`id(`NISconfigured), `V
 boolean DHCPconfigured = false;// (boolean)UI::QueryWidget(`id(`DHCPconfigured), `Value);
 
 
-//--------------------------------
-// Event loop
-//--------------------------------
+
+//-----------------------------------------------
+// dynamically create script to install new nodes
+//-----------------------------------------------
+string createinstallscript = "/usr/lib/YaST2/bin/installhost.sh";
+// SCR::Execute later after NFS-Settings are written
+
+//-----------------------------------------------
+// define some more variables
+//-----------------------------------------------
 
 any ret = nil;
 
@@ -321,22 +328,24 @@ string sched_edit = nil;
 
 string itemname = nil;
 
-// dynamically create script to install new nodes
-string createinstallscript = "/usr/lib/YaST2/bin/installhost.sh";
-SCR::Execute(.target.bash, createinstallscript);
-
 define list ndscontent = [];
 
+
+//--------------------------------
+// Event loop
+//--------------------------------
 
 repeat {
 	ret = Wizard::UserInput();
 
 	if ( ret == `nextnis )
 	{
+		// TODO: Remove NIS / DHCP skip in final version
 		NISconfigured = (boolean)UI::QueryWidget(`id(`NISconfigured), `Value);
 		DHCPconfigured = (boolean)UI::QueryWidget(`id(`DHCPconfigured), `Value);
 
 		nfs=HPCControl::QuerynWriteNFSsettings(nfs);
+		SCR::Execute(.target.bash, createinstallscript);
 
 		// Skip NIS-Configuration if not necessary
 		if (NISconfigured != true)
@@ -381,10 +390,11 @@ repeat {
 	preSCTabs();
 	}
 
-	if ( ret == `abortSC )
-	{
-	SCTabs(setup_dialog);
-	}
+// Function removed from HPCDialog
+//	if ( ret == `abortSC )
+//	{
+//	SCTabs(setup_dialog);
+//	}
 
 	if	( current_tab == Advanced_Tab() )
 	{
