@@ -97,7 +97,7 @@ global define boolean HPCServiceStart( string service )
 
 
 //-----------------------------------------------------------------
-// load configure-file for MultiLineEdit - Scheduler Configuration
+// read / create config-file for Server / Scheduler Configuration
 //-----------------------------------------------------------------
 
 // Read Queue Configuration from QMGR
@@ -196,13 +196,13 @@ global define term queueTree()
 	map qoutput = (map)SCR::Execute(.target.bash_output, qcommand);
 	string queues = (string)qoutput["stdout"]:"n.a.";
 
-	y2milestone("+++++++++++++++Queues are: %1", queues);
+	// y2milestone("+++++++++++++++Queues are: %1", queues);
 
 	list<string> queuelist = (list<string>) splitstring(queues, "\n");
 
 	queuelist = filter( string v, queuelist, { return (v != ""); });
 
-	y2milestone("+++++++++++++++Queuelist is: %1", queuelist);
+	// y2milestone("+++++++++++++++Queuelist is: %1", queuelist);
 
 	list treeitems = [];
 	list treeitem = [];
@@ -829,6 +829,7 @@ global define list nodes()
 
         list iplist = allIPs();
 
+	// generate Nodes-Table
         list table = [];
 	integer tableID = 1;
         foreach(any ip, iplist, ``{
