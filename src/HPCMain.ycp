@@ -239,12 +239,6 @@ if( SCR::Read(.target.string, "/etc/sysconfig/hpc.cfg") == nil)
 	SCR::Execute(.target.bash, "echo -e \"/hpc \t\t auto.hpc\" >> /etc/auto.master");
 	}
 
-	// create group "hpc" in dhcpd.conf
-
-	if (SCR::Execute(.target.bash, "grep -e HPC /etc/dhcpd.conf")!=0)
-	{
-	SCR::Execute(.target.bash, "/usr/lib/YaST2/bin/dhcpd.hpc.sh");
-	}
 
 //------------------------------------------
 // check SSH settings
@@ -316,6 +310,14 @@ boolean DHCPconfigured = false;// (boolean)UI::QueryWidget(`id(`DHCPconfigured),
 string createinstallscript = "/usr/lib/YaST2/bin/installhost.sh";
 // SCR::Execute later after NFS-Settings are written
 
+
+//-----------------------------------------------
+// move ssh settings if common dir has changed
+//-----------------------------------------------
+
+
+
+
 //-----------------------------------------------
 // define some more variables
 //-----------------------------------------------
@@ -356,6 +358,12 @@ repeat {
 		// Skip DHCP- Configuration if not necessary
 		if (DHCPconfigured != true)
 		{
+		// create group "hpc" in dhcpd.conf
+
+			if (SCR::Execute(.target.bash, "grep -e HPC /etc/dhcpd.conf")!=0)
+			{
+				SCR::Execute(.target.bash, "/usr/lib/YaST2/bin/dhcpd.hpc.sh");
+			}
 			WFM::CallFunction("dhcp-server");
 		}
 
@@ -363,7 +371,11 @@ repeat {
 		SCR::Execute(.target.bash, "/usr/lib/YaST2/bin/DHCPToHosts.pl");
 
 		// rebuild nis-maps
-		SCR::Execute(.target.bash, "make -C /var/yp");
+		string nisdomainname = (string)SCR::Read(.target.string, "/etc/defaultdomain");
+		string makenismaps = "make all -C /var/yp/"+nisdomainname+" -f ../Makefile";
+		SCR::Execute(.target.bash, makenismaps);
+		y2milestone("---------------NISDOMAINNAME IS: %1", nisdomainname);
+		y2milestone("---------------MAKENISMAPS IS: %1", makenismaps);
 
 		// Wait for nodes to boot
 
@@ -509,7 +521,11 @@ repeat {
 		HPCControl::AppendItem(itemname);
 		y2milestone("Append Item");
 	}
-
+	
+	if	( ret == `finish )
+	{
+		break;
+	}
 	// Debugging stuff
 
 	y2milestone ("... ret is %1 ...", ret);

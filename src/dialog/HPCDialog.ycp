@@ -250,7 +250,7 @@ define term SCTabs(term setup_dialog)
 					    );
 			Wizard::SetAbortButton(`abort,_("Abort"));
 			Wizard::SetBackButton(`backSC, _("Back"));
-			Wizard::SetNextButton(`abort, _("Finish"));
+			Wizard::SetNextButton(`finish, _("Finish"));
 			};
 	return this_tab;
 };
