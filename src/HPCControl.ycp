@@ -655,7 +655,7 @@ global define list AddClusterNode(){
 		// copy installscript to location where root can execute it (nfs is mounted root_squash !)
 		string installcopycommand = "/usr/bin/ssh root@"+node+" cp /hpc$( grep SHAREPOINT /etc/sysconfig/hpc.cfg|cut -f2 -d\":\" )/install.sh /tmp/ ";
 		// execute install script
-		string installcommand = "/usr/bin/ssh -t root@"+node+" /tmp/install.sh";
+		string installcommand = "/usr/bin/xterm -e /usr/bin/ssh -t root@"+node+" /tmp/install.sh";
 		SCR::Execute(.target.bash, installcopycommand);
 		SCR::Execute(.target.bash, installcommand);
 		string numofcpus = tostring(UI::QueryWidget(`id(`CPUs), `Value));
@@ -710,6 +710,11 @@ global define list RemoveClusterNode(){
 	string moveknownhosts = "mv /tmp/ssh_known_hosts.tmp "+sharepoint+"/ssh_known_hosts";
 	SCR::Execute(.target.bash, knownhosts);
 	SCR::Execute(.target.bash, moveknownhosts);
+	// remove links from client system
+	string removessh = "ssh root@"+node+" rm /etc/ssh/ssh_known_hosts";
+	string removeshosts = "ssh root@"+node+" rm /etc/ssh/shosts.equiv";
+	SCR::Execute(.target.bash, removessh);
+	SCR::Execute(.target.bash, removeshosts);
 	// reload ssh -config on every single node
 	string sshreload = "pdsh -R ssh -w $( cat /var/spool/pbs/server_priv/nodes|cut -f1|tr -t \"\\n\" \",\" ) /etc/init.d/sshd reload";
 	SCR::Execute(.target.bash, sshreload);
@@ -911,6 +916,26 @@ global define void NFSmap( map nfs, map nfsnew )
 	string nmountpointdir = substring(nmountpoint,1); // remove "/" from nmountpoint
 	string mapcommand = "echo -e \042"+nmountpointdir+"\t-fstype=nfs,rw,rsize=8192,wsize=8192,hard,intr,nolock,nosuid\t\t $HOST:"+nmountpoint+"\042 >> /etc/auto.hpc";
 	SCR::Execute(.target.bash, mapcommand);
+	// mv ssh_data fron old mountpoint no new
+	string moveshosts = "mv "+mountpoint+"/shosts.equiv "+nmountpoint;
+	string movessh = "mv "+mountpoint+"/ssh_known_hosts "+nmountpoint;
+	SCR::Execute(.target.bash, moveshosts);
+	SCR::Execute(.target.bash, movessh);
+		if (mountpoint != nmountpoint)
+		{
+		// renew links on clients
+	        string removessh= "pdsh -R ssh -w $( cat /var/spool/pbs/server_priv/nodes|cut -f1|tr -t \"\\n\" \",\" ) rm /etc/ssh/ssh_known_hosts";
+	        string removeshosts= "pdsh -R ssh -w $( cat /var/spool/pbs/server_priv/nodes|cut -f1|tr -t \"\\n\" \",\" ) rm /etc/ssh/shosts.equiv";
+	        SCR::Execute(.target.bash, removessh);
+	        SCR::Execute(.target.bash, removeshosts);
+	        string newshosts= "pdsh -R ssh -w $( cat /var/spool/pbs/server_priv/nodes|cut -f1|tr -t \"\\n\" \",\" ) ln -s /hpc"+nmountpoint+"/shosts.equiv /etc/ssh/shosts.equiv";
+	        string newssh= "pdsh -R ssh -w $( cat /var/spool/pbs/server_priv/nodes|cut -f1|tr -t \"\\n\" \",\" ) ln -s /hpc"+nmountpoint+"/ssh_known_hosts /etc/ssh/ssh_known_hosts";
+	        SCR::Execute(.target.bash, newssh);
+	        SCR::Execute(.target.bash, newshosts);
+
+		}
+
+
 	}
 
 //	if ( (homepoint != nhomepoint) || (hhosts != nhhosts) || (hoptions != nhoptions) || (SCR::Read(.target.string,"/etc/auto.home")==nil) )
