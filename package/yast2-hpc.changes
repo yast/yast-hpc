@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Jul  8 08:48:57 UTC 2013 - jreidinger@suse.com
+
+- fix desktop file according to 
+  http://lists.opensuse.org/opensuse-packaging/2007-05/msg00010.html 
+- 2.24.0
+
+-------------------------------------------------------------------
 Fri Oct 14 13:18:22 CEST 2005 - thofmann@suse.de
 
 - first complete version of YaST-Cluster-Module
